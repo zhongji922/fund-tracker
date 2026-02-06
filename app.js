@@ -485,8 +485,14 @@ async function parseFundResponse(response) {
  */
 async function fetchFundData(fundCode) {
     // 构建多个数据源（带时间戳防止缓存）
+    // 优先使用 Vercel 代理（无CORS问题），备用第三方代理
     const timestamp = Date.now();
     const dataSources = [
+        {
+            name: 'Vercel代理',
+            url: `/api/fund?code=${fundCode}&_=${timestamp}`,
+            type: 'json'
+        },
         {
             name: 'allorigins代理',
             url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://fundgz.1234567.com.cn/js/${fundCode}.js?_${timestamp}`)}`,
@@ -495,11 +501,6 @@ async function fetchFundData(fundCode) {
         {
             name: 'corsproxy代理',
             url: `https://corsproxy.io/?${encodeURIComponent(`https://fundgz.1234567.com.cn/js/${fundCode}.js?_${timestamp}`)}`,
-            type: 'jsonp'
-        },
-        {
-            name: '直接请求(需CORS扩展)',
-            url: `https://fundgz.1234567.com.cn/js/${fundCode}.js?_${timestamp}`,
             type: 'jsonp'
         }
     ];
