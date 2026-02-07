@@ -4,25 +4,6 @@
  */
 
 // ====================
-// LeanCloud 配置（请替换为你自己的应用凭证）
-// ====================
-const LC_APP_ID = '你的APP_ID';
-const LC_APP_KEY = '你的APP_KEY';
-const LC_SERVER_URL = 'https://你的服务器地址.lc-cn-n1-shared.com'; // 例如：https://xxx.lc-cn-n1-shared.com
-
-// 初始化 LeanCloud（如果已配置）
-if (LC_APP_ID !== '你的APP_ID' && typeof AV !== 'undefined') {
-    AV.init({
-        appId: LC_APP_ID,
-        appKey: LC_APP_KEY,
-        serverURL: LC_SERVER_URL
-    });
-    console.log('✅ LeanCloud 初始化成功');
-} else {
-    console.log('⚠️ LeanCloud 未配置，将使用本地存储');
-}
-
-// ====================
 // 常量定义
 // ====================
 const STORAGE_KEY = 'fund_portfolio_v3';
@@ -41,15 +22,6 @@ let portfolio = {
     dataCache: {}, // 实时数据缓存 { code: { name, nav, estimate, gztime } }
     lastUpdate: null
 };
-
-// 当前用户ID（用于LeanCloud，基于设备生成）
-let currentUserId = localStorage.getItem('fund_tracker_user_id') || generateUserId();
-
-function generateUserId() {
-    const userId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
-    localStorage.setItem('fund_tracker_user_id', userId);
-    return userId;
-}
 
 // 当前编辑的基金
 let editingFundCode = null;
@@ -429,29 +401,7 @@ function getTradeTime(index, totalPoints = 49) {
 }
 
 // 初始化加载
-async function initStorage() {
-    // 优先尝试从 LeanCloud 加载
-    if (LC_APP_ID !== '你的APP_ID' && typeof AV !== 'undefined') {
-        try {
-            const query = new AV.Query('Portfolio');
-            query.equalTo('userId', currentUserId);
-            const result = await query.first();
-            
-            if (result) {
-                const data = result.get('funds');
-                if (data && Array.isArray(data)) {
-                    portfolio.funds = data;
-                    console.log('✅ 从 LeanCloud 加载持仓成功:', portfolio.funds.length, '只基金');
-                    return;
-                }
-            }
-            console.log('ℹ️ LeanCloud 无数据，使用本地存储');
-        } catch (e) {
-            console.error('❌ 从 LeanCloud 加载失败:', e);
-        }
-    }
-    
-    // 回退到本地存储
+function initStorage() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
         try {
@@ -462,49 +412,104 @@ async function initStorage() {
             console.error('Storage parse error:', e);
             portfolio.funds = [];
         }
-    } else {
-        // 不再添加默认持仓
-        portfolio.funds = [];
+    }
+    // 如果没有数据，显示空状态（不添加默认持仓）
+    if (portfolio.funds.length === 0) {
         console.log('ℹ️ 无持仓数据，显示空状态');
     }
 }
 
-async function saveStorage() {
-    // 保存到 LeanCloud（如果已配置）
-    if (LC_APP_ID !== '你的APP_ID' && typeof AV !== 'undefined') {
-        try {
-            const query = new AV.Query('Portfolio');
-            query.equalTo('userId', currentUserId);
-            let portfolioObj = await query.first();
-            
-            if (!portfolioObj) {
-                const Portfolio = AV.Object.extend('Portfolio');
-                portfolioObj = new Portfolio();
-                portfolioObj.set('userId', currentUserId);
-            }
-            
-            portfolioObj.set('funds', portfolio.funds);
-            portfolioObj.set('lastUpdate', new Date());
-            await portfolioObj.save();
-            console.log('✅ 持仓已保存到 LeanCloud');
-        } catch (e) {
-            console.error('❌ 保存到 LeanCloud 失败:', e);
-            showToast('云端同步失败，已保存到本地');
-        }
-    }
-    
-    // 同时保存到本地存储（作为备份）
+function saveStorage() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
             funds: portfolio.funds,
             lastUpdate: new Date().toISOString()
         }));
+        console.log('✅ 持仓已保存到本地存储');
     } catch (e) {
         console.error('保存到本地存储失败:', e);
         if (e.name === 'QuotaExceededError') {
-            showToast('存储空间不足');
+            showToast('存储空间不足，建议导出数据备份');
         }
     }
+}
+
+// ====================
+// 数据导入导出功能
+// ====================
+
+/**
+ * 导出持仓数据为 JSON 文件
+ */
+function exportPortfolio() {
+    const data = {
+        funds: portfolio.funds,
+        exportTime: new Date().toISOString(),
+        version: '1.0'
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fund-tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast('持仓数据已导出');
+}
+
+/**
+ * 导入持仓数据
+ */
+function importPortfolioFromFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (data.funds && Array.isArray(data.funds)) {
+                // 验证数据格式
+                const validFunds = data.funds.filter(f => 
+                    f.code && f.shares && f.costPrice &&
+                    typeof f.code === 'string' &&
+                    typeof f.shares === 'number' &&
+                    typeof f.costPrice === 'number'
+                );
+                
+                if (validFunds.length === 0) {
+                    showToast('导入失败：数据格式不正确');
+                    return;
+                }
+                
+                // 合并或替换现有持仓
+                if (confirm(`检测到 ${validFunds.length} 只基金，是否覆盖现有持仓？\n选择"取消"将追加到现有持仓。`)) {
+                    portfolio.funds = validFunds;
+                } else {
+                    // 追加模式，检查重复
+                    validFunds.forEach(newFund => {
+                        const existingIndex = portfolio.funds.findIndex(f => f.code === newFund.code);
+                        if (existingIndex >= 0) {
+                            portfolio.funds[existingIndex] = newFund;
+                        } else {
+                            portfolio.funds.push(newFund);
+                        }
+                    });
+                }
+                
+                saveStorage();
+                updateUI();
+                showToast(`成功导入 ${validFunds.length} 只基金`);
+            } else {
+                showToast('导入失败：文件格式不正确');
+            }
+        } catch (err) {
+            console.error('导入失败:', err);
+            showToast('导入失败：无法解析文件');
+        }
+    };
+    reader.readAsText(file);
 }
 
 // ====================
@@ -2379,8 +2384,8 @@ function updateThemeIcon(isDark) {
     sunIcons.forEach(icon => icon.style.display = isDark ? 'block' : 'none');
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    await initStorage();
+document.addEventListener('DOMContentLoaded', () => {
+    initStorage();
     initTheme();
     renderFundList(); // 初始化后立即渲染列表
     updateOverview(); // 更新概览数据
@@ -2389,7 +2394,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderNews();
     startAutoPoll();
     // 立即获取一次实时新闻
-    await fetchNews();
+    fetchNews();
 });
 
 // ====================
@@ -2600,3 +2605,5 @@ globalThis.fundApp = { portfolio, updateUI, selectedFundCode, currentChartPeriod
 globalThis.toggleDarkMode = toggleDarkMode;
 globalThis.initTheme = initTheme;
 globalThis.fetchMarketIndices = fetchMarketIndices;
+globalThis.exportPortfolio = exportPortfolio;
+globalThis.importPortfolioFromFile = importPortfolioFromFile;
