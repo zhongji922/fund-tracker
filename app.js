@@ -2737,75 +2737,82 @@ function switchMarketTab(tab) {
             break;
             
         case 'hot':
-            // 热门基金示例
-            html = `
-                <div class="market-item">
-                    <div class="market-fund-info">
-                        <span class="market-fund-name">招商中证白酒指数</span>
-                        <span class="market-fund-code">161725</span>
+            // 热门基金 - 15只热门基金
+            const hotFunds = [
+                { name: '招商中证白酒指数', code: '161725', nav: '1.2345', change: 3.21 },
+                { name: '中欧医疗健康混合A', code: '003095', nav: '2.5678', change: -1.23 },
+                { name: '农银新能源主题', code: '002190', nav: '3.4567', change: 2.45 },
+                { name: '易方达蓝筹精选', code: '009803', nav: '2.4152', change: 1.89 },
+                { name: '景顺长城新兴成长', code: '009808', nav: '1.8234', change: -0.56 },
+                { name: '广发中证500指数', code: '162711', nav: '1.4567', change: 0.78 },
+                { name: '华夏能源革新股票', code: '003834', nav: '3.1234', change: 4.12 },
+                { name: '富国天惠成长混合', code: '161005', nav: '2.3456', change: 1.34 },
+                { name: '工银瑞信前沿医疗', code: '001717', nav: '3.5678', change: -2.11 },
+                { name: '鹏华酒指数A', code: '012043', nav: '1.1234', change: 2.89 },
+                { name: '兴全合润混合', code: '163406', nav: '1.9876', change: 0.92 },
+                { name: '交银新成长混合', code: '519736', nav: '4.2345', change: 1.56 },
+                { name: '汇添富消费行业', code: '000083', nav: '5.6789', change: -0.88 },
+                { name: '南方中证全指证券', code: '004069', nav: '1.3456', change: 3.45 },
+                { name: '嘉实沪深300指数', code: '160706', nav: '1.5678', change: 0.67 }
+            ];
+            html = hotFunds.map(fund => {
+                const changeClass = fund.change >= 0 ? 'up' : 'down';
+                const changeStr = fund.change >= 0 ? `+${fund.change.toFixed(2)}%` : `${fund.change.toFixed(2)}%`;
+                return `
+                    <div class="market-item" onclick="addHotFund('${fund.code}', '${fund.name}')">
+                        <div class="market-fund-info">
+                            <span class="market-fund-name">${fund.name}</span>
+                            <span class="market-fund-code">${fund.code}</span>
+                        </div>
+                        <div class="market-fund-data">
+                            <span class="market-nav">${fund.nav}</span>
+                            <span class="market-change ${changeClass}">${changeStr}</span>
+                        </div>
                     </div>
-                    <div class="market-fund-data">
-                        <span class="market-nav">1.2345</span>
-                        <span class="market-change up">+3.21%</span>
-                    </div>
-                </div>
-                <div class="market-item">
-                    <div class="market-fund-info">
-                        <span class="market-fund-name">中欧医疗健康混合</span>
-                        <span class="market-fund-code">003095</span>
-                    </div>
-                    <div class="market-fund-data">
-                        <span class="market-nav">2.5678</span>
-                        <span class="market-change down">-1.23%</span>
-                    </div>
-                </div>
-                <div class="market-item">
-                    <div class="market-fund-info">
-                        <span class="market-fund-name">农银新能源主题</span>
-                        <span class="market-fund-code">002190</span>
-                    </div>
-                    <div class="market-fund-data">
-                        <span class="market-nav">3.4567</span>
-                        <span class="market-change up">+2.45%</span>
-                    </div>
-                </div>
-            `;
+                `;
+            }).join('');
             break;
             
         case 'rank':
-            // 涨跌幅排行示例
-            html = `
-                <div class="market-item">
-                    <div class="market-fund-info">
-                        <span class="market-fund-name">招商中证白酒指数</span>
-                        <span class="market-fund-code">161725</span>
+            // 涨跌幅排行 - 20只基金按涨跌幅排序
+            const rankFunds = [
+                { name: '华夏能源革新股票', code: '003834', nav: '3.1234', change: 5.67 },
+                { name: '招商中证白酒指数', code: '161725', nav: '1.2345', change: 4.56 },
+                { name: '南方中证全指证券', code: '004069', nav: '1.3456', change: 3.89 },
+                { name: '银河创新成长混合C', code: '014143', nav: '1.4567', change: 3.45 },
+                { name: '鹏华酒指数A', code: '012043', nav: '1.1234', change: 2.98 },
+                { name: '农银新能源主题', code: '002190', nav: '3.4567', change: 2.45 },
+                { name: '易方达蓝筹精选', code: '009803', nav: '2.4152', change: 1.89 },
+                { name: '交银新成长混合', code: '519736', nav: '4.2345', change: 1.56 },
+                { name: '兴全合润混合', code: '163406', nav: '1.9876', change: 0.92 },
+                { name: '广发中证500指数', code: '162711', nav: '1.4567', change: 0.78 },
+                { name: '嘉实沪深300指数', code: '160706', nav: '1.5678', change: 0.67 },
+                { name: '景顺长城新兴成长', code: '009808', nav: '1.8234', change: -0.56 },
+                { name: '汇添富消费行业', code: '000083', nav: '5.6789', change: -0.88 },
+                { name: '富国天惠成长混合', code: '161005', nav: '2.3456', change: -1.34 },
+                { name: '中欧医疗健康混合A', code: '003095', nav: '2.5678', change: -1.56 },
+                { name: '工银瑞信前沿医疗', code: '001717', nav: '3.5678', change: -2.11 },
+                { name: '易方达中小盘混合', code: '110011', nav: '7.8901', change: -2.45 },
+                { name: '鹏华新兴产业', code: '206009', nav: '2.1234', change: -3.12 },
+                { name: '中邮信息产业', code: '001715', nav: '1.4567', change: -3.89 },
+                { name: '宝盈互联网沪港深', code: '002482', nav: '1.2345', change: -4.56 }
+            ];
+            html = rankFunds.map(fund => {
+                const changeClass = fund.change >= 0 ? 'up' : 'down';
+                const changeStr = fund.change >= 0 ? `+${fund.change.toFixed(2)}%` : `${fund.change.toFixed(2)}%`;
+                return `
+                    <div class="market-item" onclick="addHotFund('${fund.code}', '${fund.name}')">
+                        <div class="market-fund-info">
+                            <span class="market-fund-name">${fund.name}</span>
+                            <span class="market-fund-code">${fund.code}</span>
+                        </div>
+                        <div class="market-fund-data">
+                            <span class="market-nav">${fund.nav}</span>
+                            <span class="market-change ${changeClass}">${changeStr}</span>
+                        </div>
                     </div>
-                    <div class="market-fund-data">
-                        <span class="market-nav">1.2345</span>
-                        <span class="market-change up">+5.67%</span>
-                    </div>
-                </div>
-                <div class="market-item">
-                    <div class="market-fund-info">
-                        <span class="market-fund-name">银河创新成长混合</span>
-                        <span class="market-fund-code">014143</span>
-                    </div>
-                    <div class="market-fund-data">
-                        <span class="market-nav">1.4567</span>
-                        <span class="market-change up">+3.45%</span>
-                    </div>
-                </div>
-                <div class="market-item">
-                    <div class="market-fund-info">
-                        <span class="market-fund-name">易方达蓝筹精选</span>
-                        <span class="market-fund-code">009803</span>
-                    </div>
-                    <div class="market-fund-data">
-                        <span class="market-nav">2.4152</span>
-                        <span class="market-change down">-2.34%</span>
-                    </div>
-                </div>
-            `;
+                `;
+            }).join('');
             break;
     }
     
@@ -2827,6 +2834,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
 });
 
+// 从行情添加基金到持仓
+async function addHotFund(code, name) {
+    // 检查是否已存在
+    if (portfolio.funds.find(f => f.code === code)) {
+        showToast('该基金已在持仓中');
+        return;
+    }
+    
+    // 获取基金数据
+    const fundData = await fetchFundData(code);
+    if (!fundData) {
+        showToast('无法获取基金数据');
+        return;
+    }
+    
+    // 使用基金估算净值作为成本价（简化操作）
+    const costPrice = fundData.estimate || fundData.nav || 1.0;
+    const shares = 1000; // 默认1000份
+    
+    // 添加到持仓
+    portfolio.funds.push({ 
+        code, 
+        shares, 
+        costPrice 
+    });
+    portfolio.dataCache[code] = fundData;
+    
+    await saveStorage();
+    updateUI();
+    showToast(`已添加 ${name} 到持仓`);
+}
+
 globalThis.switchMarketTab = switchMarketTab;
+globalThis.addHotFund = addHotFund;
 globalThis.exportPortfolio = exportPortfolio;
 globalThis.importPortfolioFromFile = importPortfolioFromFile;
