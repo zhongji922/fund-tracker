@@ -2467,8 +2467,8 @@ function updateThemeIcon(isDark) {
     sunIcons.forEach(icon => icon.style.display = isDark ? 'block' : 'none');
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    initStorage();
+document.addEventListener('DOMContentLoaded', async () => {
+    await initStorage(); // 等待数据加载完成
     initTheme();
     renderFundList(); // 初始化后立即渲染列表
     updateOverview(); // 更新概览数据
@@ -2477,7 +2477,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderNews();
     startAutoPoll();
     // 立即获取一次实时新闻
-    fetchNews();
+    await fetchNews();
 });
 
 // ====================
