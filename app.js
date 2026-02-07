@@ -549,7 +549,7 @@ function exportPortfolio() {
  */
 function importPortfolioFromFile(file) {
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         try {
             const data = JSON.parse(e.target.result);
             if (data.funds && Array.isArray(data.funds)) {
