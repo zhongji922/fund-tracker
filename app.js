@@ -250,16 +250,12 @@ async function fetchFundHistory(fundCode) {
         return historyDataCache.get(cacheKey);
     }
 
-    // 定义多个数据源（优先使用Vercel代理）
+    // 定义数据源（优先使用Vercel代理）
     const timestamp = Date.now();
     const dataSources = [
         {
             name: 'Vercel代理',
             url: `/api/fund-history?code=${fundCode}&_=${timestamp}`
-        },
-        {
-            name: 'allorigins代理',
-            url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://fund.eastmoney.com/pingzhongdata/${fundCode}.js?v=${timestamp}`)}`
         }
     ];
 
@@ -458,9 +454,7 @@ async function fetchFundSector(fundCode) {
         const timestamp = Date.now();
         const urls = [
             // 通过Vercel代理获取基金详情
-            `/api/fund-detail?code=${fundCode}&_=${timestamp}`,
-            // 直接访问
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://fund.eastmoney.com/pingzhongdata/${fundCode}.js?v=${timestamp}`)}`
+            `/api/fund-detail?code=${fundCode}&_=${timestamp}`
         ];
         
         for (const url of urls) {
@@ -542,12 +536,8 @@ async function fetchFundIntradayData(fundCode) {
         // Eastmoney基金实时估值API（分时数据）
         const timestamp = Date.now();
         const urls = [
-            // 尝试通过Vercel代理
-            `/api/fund-intraday?code=${fundCode}&_=${timestamp}`,
-            // 直接访问（需要CORS代理）
-            `https://push2.eastmoney.com/api/qt/stock/get?secid=0.${fundCode}&fields=f43,f44,f45,f46,f47,f48,f50,f51,f52,f57,f58,f60,f107,f108,f170&_=${timestamp}`,
-            // 备用接口
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://push2.eastmoney.com/api/qt/stock/get?secid=0.${fundCode}&fields=f43,f44,f45,f46,f47,f48,f50,f51,f52,f57,f58,f60,f107,f108,f170&_=${timestamp}`)}`
+            // 优先使用Vercel代理
+            `/api/fund-intraday?code=${fundCode}&_=${timestamp}`
         ];
         
         for (const url of urls) {
@@ -839,11 +829,6 @@ async function fetchFundData(fundCode) {
             name: 'Vercel代理',
             url: `/api/fund?code=${fundCode}&_=${timestamp}`,
             type: 'json'
-        },
-        {
-            name: 'allorigins代理',
-            url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://fundgz.1234567.com.cn/js/${fundCode}.js?_${timestamp}`)}`,
-            type: 'jsonp'
         }
     ];
 
@@ -1725,12 +1710,19 @@ async function renderPerformanceChart() {
                 fontSize: 12
             },
             formatter: function(params) {
+                if (!params || !params[0]) return '';
                 const dataIndex = params[0].dataIndex;
-                const date = filteredData[dataIndex]?.date || dates[dataIndex];
-                const value = params[0].value.toFixed(4);
+                const date = filteredData[dataIndex]?.date || dates[dataIndex] || '--';
+                const value = params[0].value;
+                if (value === undefined || value === null || isNaN(value)) {
+                    return `<div style="padding: 6px;">
+                        <div style="font-weight: 600; margin-bottom: 2px; color: #64748b;">${date}</div>
+                        <div style="font-size: 14px; font-weight: 600;">--</div>
+                    </div>`;
+                }
                 return `<div style="padding: 6px;">
                     <div style="font-weight: 600; margin-bottom: 2px; color: #64748b;">${date}</div>
-                    <div style="font-size: 14px; font-weight: 600;">¥${value}</div>
+                    <div style="font-size: 14px; font-weight: 600;">¥${value.toFixed(4)}</div>
                 </div>`;
             }
         },
@@ -2456,12 +2448,9 @@ async function fetchNews() {
     }
 
     try {
-        // 尝试从东方财富API获取实时新闻
+        // 尝试从东方财富API获取实时新闻（通过Vercel代理）
         const timestamp = Date.now();
-        const eastmoneyUrl = `https://newsapi.eastmoney.com/kuaixun/v1/getlist?size=20&_=${timestamp}`;
-        const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(eastmoneyUrl);
-
-        const response = await fetchWithTimeout(proxyUrl, {
+        const response = await fetchWithTimeout(`/api/news?size=20&_=${timestamp}`, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json'
@@ -2500,43 +2489,7 @@ async function fetchNews() {
         console.log('东财API获取失败:', e.message);
     }
 
-    // 备用：尝试新浪财经
-    try {
-        const sinaUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2516&k=&num=20&r=' + Math.random());
-        const response = await fetchWithTimeout(sinaUrl, {}, 8000);
-
-        if (response.ok) {
-            const text = await response.text();
-            let data;
-            try {
-                data = JSON.parse(text);
-            } catch (e) {
-                const jsonMatch = text.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    data = JSON.parse(jsonMatch[0]);
-                }
-            }
-
-            if (data && data.result && data.result.data) {
-                const parsedNews = parseSinaNews(data.result.data);
-                if (parsedNews.length > 0) {
-                    newsData = parsedNews;
-                    lastNewsUpdate = new Date().toISOString();
-                    console.log('✅ 新浪新闻获取成功:', newsData.length, '条');
-                    renderNews();
-                    if (refreshBtn) {
-                        refreshBtn.classList.remove('spinning');
-                        refreshBtn.disabled = false;
-                    }
-                    return newsData;
-                }
-            }
-        }
-    } catch (e) {
-        console.log('新浪API获取失败:', e.message);
-    }
-
-    // 如果所有API都失败，使用Mock数据兜底
+    // 如果API获取失败，使用Mock数据兜底
     console.log('⚠️ 使用Mock新闻数据');
     if (newsData.length === 0) {
         newsData = mockNewsData.map((item, index) => ({
@@ -2814,19 +2767,11 @@ async function fetchMarketIndices() {
 
         const timestamp = Date.now();
         
-        // 构建多个数据源
+        // 构建数据源（优先使用Vercel代理）
         const dataSources = [
             {
-                name: 'allorigins代理',
-                url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f2,f3,f4,f5,f6,f12,f13,f14,f15,f16,f17,f18&secids=${codeList}&_=${timestamp}`)}`
-            },
-            {
-                name: 'corsproxy代理',
-                url: `https://corsproxy.io/?${encodeURIComponent(`https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f2,f3,f4,f5,f6,f12,f13,f14,f15,f16,f17,f18&secids=${codeList}&_=${timestamp}`)}`
-            },
-            {
-                name: '直接请求',
-                url: `https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f2,f3,f4,f5,f6,f12,f13,f14,f15,f16,f17,f18&secids=${codeList}&_=${timestamp}`
+                name: 'Vercel代理',
+                url: `/api/market-indices?indices=${codeList}&_=${timestamp}`
             }
         ];
 
