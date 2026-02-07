@@ -910,14 +910,18 @@ function updateOverview() {
 
     // 总资产
     const assetEl = document.getElementById('totalAsset');
-    if (assetEl) assetEl.textContent = '¥ ' + formatMoney(data.totalAsset);
+    if (assetEl) {
+        assetEl.textContent = '¥ ' + formatMoney(data.totalAsset);
+        console.log('✅ 更新总资产:', data.totalAsset);
+    }
 
     // 当日收益
     const profitEl = document.getElementById('todayProfit');
     if (profitEl) {
         const prefix = data.dayProfit >= 0 ? '+' : '';
         profitEl.textContent = prefix + formatMoney(data.dayProfit);
-        profitEl.className = 'stat-value ' + (data.dayProfit >= 0 ? 'positive' : 'negative');
+        profitEl.className = 'stat-value ' + (data.dayProfit >= 0 ? 'up' : 'down');
+        console.log('✅ 更新当日收益:', data.dayProfit);
     }
 
     // 持有收益
@@ -925,7 +929,8 @@ function updateOverview() {
     if (holdEl) {
         const prefix = data.holdProfit >= 0 ? '+' : '';
         holdEl.textContent = prefix + formatMoney(data.holdProfit);
-        holdEl.className = 'stat-value ' + (data.holdProfit >= 0 ? 'positive' : 'negative');
+        holdEl.className = 'stat-value ' + (data.holdProfit >= 0 ? 'up' : 'down');
+        console.log('✅ 更新持有收益:', data.holdProfit);
     }
 
     // 累计收益率
@@ -933,7 +938,8 @@ function updateOverview() {
     if (rateEl) {
         const prefix = data.totalRate >= 0 ? '+' : '';
         rateEl.textContent = prefix + data.totalRate.toFixed(2) + '%';
-        rateEl.className = 'stat-value ' + (data.totalRate >= 0 ? 'positive' : 'negative');
+        rateEl.className = 'stat-value ' + (data.totalRate >= 0 ? 'up' : 'down');
+        console.log('✅ 更新累计收益率:', data.totalRate);
     }
 }
 
@@ -1644,28 +1650,40 @@ async function renderChart(fundCode, period) {
 }
 
 async function updateUI() {
-    // 并行获取基金数据和市场指数
-    await Promise.all([
-        fetchAllFundData(),
-        fetchMarketIndices()
-    ]);
-    renderFundList();
-    updateOverview();
-    // 刷新行情模块的自选列表
-    switchMarketTab('self');
-    // 获取实时新闻（首次加载或间隔超过5分钟）
-    if (!lastNewsUpdate || (new Date() - new Date(lastNewsUpdate)) > 5 * 60 * 1000) {
-        await fetchNews();
-    } else {
-        renderNews();
-    }
+    console.log('🔄 开始更新UI...');
+    try {
+        // 并行获取基金数据和市场指数
+        await Promise.all([
+            fetchAllFundData(),
+            fetchMarketIndices()
+        ]);
+        
+        console.log('✅ 数据获取完成，开始渲染...');
+        renderFundList();
+        updateOverview();
+        renderMarketIndices(); // 确保市场指数被渲染
+        
+        // 刷新行情模块的自选列表
+        switchMarketTab('self');
+        
+        // 获取实时新闻（首次加载或间隔超过5分钟）
+        if (!lastNewsUpdate || (new Date() - new Date(lastNewsUpdate)) > 5 * 60 * 1000) {
+            await fetchNews();
+        } else {
+            renderNews();
+        }
 
-    // 渲染图表（async 函数调用）
-    // 如果有选中的基金，更新图表；否则显示默认图表
-    if (selectedFundCode && portfolio.dataCache[selectedFundCode]) {
-        await renderChart(selectedFundCode, currentChartPeriod);
-    } else {
-        renderDefaultChart();
+        // 渲染图表（async 函数调用）
+        // 如果有选中的基金，更新图表；否则显示默认图表
+        if (selectedFundCode && portfolio.dataCache[selectedFundCode]) {
+            await renderChart(selectedFundCode, currentChartPeriod);
+        } else {
+            renderDefaultChart();
+        }
+        
+        console.log('✅ UI更新完成');
+    } catch (error) {
+        console.error('❌ UI更新失败:', error);
     }
 }
 
@@ -2749,34 +2767,24 @@ function showIndexUpdateTime() {
  * 渲染市场指数到DOM
  */
 function renderMarketIndices() {
-    const container = document.querySelector('.index-cards');
-    if (!container) return;
+    // 新的DOM结构使用ID来定位每个指数
+    const indexMap = {
+        'sh000001': 'shIndex',
+        'sz399001': 'szIndex',
+        'sz399006': 'cyIndex',
+        'sh000300': 'hs300Index'
+    };
 
-    const indexCards = container.querySelectorAll('.index-card');
-
-    MARKET_INDICES.forEach((idx, index) => {
+    MARKET_INDICES.forEach((idx) => {
         const data = marketIndexData[idx.code];
-        const card = indexCards[index];
-        if (!card || !data) return;
-
-        // 更新数值
-        const valueEl = card.querySelector('.index-value');
-        const changeEl = card.querySelector('.index-change');
-
-        if (valueEl) {
-            valueEl.textContent = data.current;
-            valueEl.style.color = data.isUp ? '#EF4444' : '#10B981';
-        }
-
-        if (changeEl) {
+        const elementId = indexMap[idx.code];
+        const valueEl = document.getElementById(elementId);
+        
+        if (valueEl && data) {
             const sign = data.isUp ? '+' : '';
-            changeEl.innerHTML = `<span>${sign}${data.change}</span><span>${sign}${data.changePercent}%</span>`;
-            changeEl.style.color = data.isUp ? '#EF4444' : '#10B981';
+            valueEl.textContent = `${data.current} ${sign}${data.changePercent}%`;
+            valueEl.className = 'index-value ' + (data.isUp ? 'up' : 'down');
         }
-
-        // 更新涨跌样式类
-        card.classList.remove('up', 'down');
-        card.classList.add(data.isUp ? 'up' : 'down');
     });
 }
 
