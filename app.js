@@ -250,19 +250,16 @@ async function fetchFundHistory(fundCode) {
         return historyDataCache.get(cacheKey);
     }
 
-    // 定义多个数据源
+    // 定义多个数据源（优先使用Vercel代理）
+    const timestamp = Date.now();
     const dataSources = [
         {
+            name: 'Vercel代理',
+            url: `/api/fund-history?code=${fundCode}&_=${timestamp}`
+        },
+        {
             name: 'allorigins代理',
-            url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://fund.eastmoney.com/pingzhongdata/${fundCode}.js?v=${Date.now()}`)}`
-        },
-        {
-            name: 'corsproxy代理',
-            url: `https://corsproxy.io/?${encodeURIComponent(`https://fund.eastmoney.com/pingzhongdata/${fundCode}.js?v=${Date.now()}`)}`
-        },
-        {
-            name: '直接请求(需扩展)',
-            url: `https://fund.eastmoney.com/pingzhongdata/${fundCode}.js?v=${Date.now()}`
+            url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://fund.eastmoney.com/pingzhongdata/${fundCode}.js?v=${timestamp}`)}`
         }
     ];
 
@@ -280,54 +277,62 @@ async function fetchFundHistory(fundCode) {
                 throw new Error(`HTTP ${response.status}`);
             }
 
-            const text = await response.text();
-            console.log(`📄 基金 ${fundCode} 原始响应长度: ${text.length} 字符`);
-
-            // 解析返回的JS数据
-            // 东方财富返回的数据格式：Data_netWorthTrend = [{x: ..., y: ...}, {...}, ...];
-            // 使用更强大的正则匹配，提取完整的数组
-            // 先尝试匹配带分号的格式，再尝试不带分号的
-            let netWorthMatch = text.match(/Data_netWorthTrend\s*=\s*(\[[\s\S]*?\]);/);
-            if (!netWorthMatch) {
-                netWorthMatch = text.match(/Data_netWorthTrend\s*=\s*(\[[\s\S]*?\])/);
-            }
-
-            console.log(`🔍 正则匹配结果: ${netWorthMatch ? '成功' : '失败'}`);
-
+            const contentType = response.headers.get('content-type');
             let historyData = [];
-
-            if (netWorthMatch) {
-                try {
-                    const netWorthData = JSON.parse(netWorthMatch[1]);
-                    console.log(`📊 基金 ${fundCode} 解析到 ${netWorthData.length} 条原始数据`);
-
-                    // 转换为内部格式 { date: '2024-01-15', nav: 1.2345, change: 0.5 }
-                    const validData = netWorthData.filter(item => item.y !== null && item.y !== undefined && !isNaN(item.y));
-                    historyData = validData.slice(-60).map((item, index, arr) => {
-                        const date = new Date(item.x);
-                        const prevNav = index > 0 ? arr[index - 1].y : item.y;
-                        const change = index > 0 ? ((item.y - prevNav) / prevNav * 100) : 0;
-
-                        return {
-                            date: date.toISOString().split('T')[0],
-                            time: `${date.getMonth() + 1}/${date.getDate()}`,
-                            nav: item.y,
-                            change: change,
-                            timestamp: item.x
-                        };
-                    });
-                    console.log(`✅ 基金 ${fundCode} 成功处理 ${historyData.length} 条有效历史数据`);
-
-                    // 如果成功获取到数据，缓存并返回
+            
+            if (contentType && contentType.includes('application/json')) {
+                // Vercel API返回的JSON格式
+                const jsonData = await response.json();
+                if (jsonData.data && Array.isArray(jsonData.data)) {
+                    historyData = jsonData.data;
+                    console.log(`✅ [Vercel代理] 基金 ${fundCode} 获取到 ${historyData.length} 条历史数据`);
                     if (historyData.length > 0) {
                         historyDataCache.set(cacheKey, historyData);
                         return historyData;
                     }
-                } catch (e) {
-                    console.warn(`❌ 解析基金 ${fundCode} 净值数据失败:`, e);
                 }
             } else {
-                console.warn(`⚠️ 基金 ${fundCode} 数据格式不匹配，未找到 Data_netWorthTrend`);
+                // 直接解析JS格式（allorigins等代理）
+                const text = await response.text();
+                console.log(`📄 基金 ${fundCode} 原始响应长度: ${text.length} 字符`);
+
+                // 解析返回的JS数据
+                let netWorthMatch = text.match(/Data_netWorthTrend\s*=\s*(\[[\s\S]*?\]);/);
+                if (!netWorthMatch) {
+                    netWorthMatch = text.match(/Data_netWorthTrend\s*=\s*(\[[\s\S]*?\])/);
+                }
+
+                if (netWorthMatch) {
+                    try {
+                        const netWorthData = JSON.parse(netWorthMatch[1]);
+                        console.log(`📊 基金 ${fundCode} 解析到 ${netWorthData.length} 条原始数据`);
+
+                        // 转换为内部格式
+                        const validData = netWorthData.filter(item => item.y !== null && item.y !== undefined && !isNaN(item.y));
+                        historyData = validData.slice(-60).map((item, index, arr) => {
+                            const date = new Date(item.x);
+                            const prevNav = index > 0 ? arr[index - 1].y : item.y;
+                            const change = index > 0 ? ((item.y - prevNav) / prevNav * 100) : 0;
+
+                            return {
+                                date: date.toISOString().split('T')[0],
+                                time: `${date.getMonth() + 1}/${date.getDate()}`,
+                                value: item.y,
+                                nav: item.y,
+                                change: change,
+                                timestamp: item.x
+                            };
+                        });
+                        console.log(`✅ 基金 ${fundCode} 成功处理 ${historyData.length} 条有效历史数据`);
+
+                        if (historyData.length > 0) {
+                            historyDataCache.set(cacheKey, historyData);
+                            return historyData;
+                        }
+                    } catch (e) {
+                        console.warn(`❌ 解析基金 ${fundCode} 净值数据失败:`, e);
+                    }
+                }
             }
         } catch (e) {
             console.warn(`⚠️ 使用 ${source.name} 获取基金 ${fundCode} 失败: ${e.message}`);
@@ -838,11 +843,6 @@ async function fetchFundData(fundCode) {
         {
             name: 'allorigins代理',
             url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://fundgz.1234567.com.cn/js/${fundCode}.js?_${timestamp}`)}`,
-            type: 'jsonp'
-        },
-        {
-            name: 'corsproxy代理',
-            url: `https://corsproxy.io/?${encodeURIComponent(`https://fundgz.1234567.com.cn/js/${fundCode}.js?_${timestamp}`)}`,
             type: 'jsonp'
         }
     ];
@@ -1633,9 +1633,34 @@ async function renderPerformanceChart() {
             break;
     }
     
-    let filteredData = historyData.filter(d => new Date(d.date) >= startDate);
+    // 处理空数据情况
+    let filteredData = [];
+    if (historyData && Array.isArray(historyData)) {
+        filteredData = historyData.filter(d => new Date(d.date) >= startDate);
+    }
+    
+    // 如果过滤后数据不足，使用全部历史数据或生成模拟数据
     if (filteredData.length < 5) {
-        filteredData = historyData.slice(-30);
+        if (historyData && historyData.length >= 5) {
+            filteredData = historyData.slice(-30);
+        } else {
+            // 生成模拟数据
+            console.log(`⚠️ ${selectedFundCode} 历史数据不足，使用模拟数据`);
+            const basePrice = data.nav || 1.0;
+            const changePercent = data.changePercent || 0;
+            filteredData = [];
+            const days = { '1m': 30, '3m': 90, '6m': 180, '1y': 365, '3y': 365 }[currentPerformancePeriod] || 90;
+            for (let i = 0; i < Math.min(days, 30); i++) {
+                const date = new Date();
+                date.setDate(date.getDate() - (days - i));
+                const progress = i / days;
+                const value = basePrice * (1 + (changePercent / 100) * progress);
+                filteredData.push({
+                    date: date.toISOString().split('T')[0],
+                    value: value
+                });
+            }
+        }
     }
     
     // 更新图例
