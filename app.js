@@ -59,8 +59,11 @@ let importParsedData = [];
 // 当前选中的基金（用于图表联动）
 let selectedFundCode = null;
 
-// 当前图表周期
-let currentChartPeriod = 'day'; // 'day' | 'month' | 'year' | 'all'
+// 当前图表Tab
+let currentChartTab = 'sector'; // 'sector' | 'performance'
+
+// 当前业绩走势周期
+let currentPerformancePeriod = '3m'; // '1m' | '3m' | '6m' | '1y' | '3y'
 
 // ====================
 // 7x24小时财经快讯数据
@@ -338,27 +341,42 @@ async function fetchFundHistory(fundCode) {
 
 /**
  * 生成基于估算涨跌幅的分时图数据
- * 简单线性插值，不添加随机波动，真实反映估算值
+ * 优先使用实时估值数据，如果不存在则使用估算值线性插值
  */
 async function generateIntradayData(basePrice, changePercent, fundCode = 'default') {
     // 生成49个时间点的数据（9:30-11:30, 13:00-15:00）
     const points = 49;
     const data = [];
     
-    // 目标价格（基于估算涨跌幅）
-    const targetPrice = basePrice * (1 + changePercent / 100);
+    // 尝试获取实时估值数据
+    let realTimeData = null;
+    if (fundCode && fundCode !== 'default') {
+        realTimeData = await fetchFundIntradayData(fundCode);
+    }
+    
+    // 如果有实时数据，使用实时数据
+    const actualBasePrice = realTimeData ? realTimeData.preClose : basePrice;
+    const targetPrice = realTimeData ? realTimeData.currentPrice : (basePrice * (1 + changePercent / 100));
+    const actualChangePercent = realTimeData ? realTimeData.changePercent : changePercent;
+    
+    console.log(`📊 ${fundCode} 分时数据:`, realTimeData ? '实时数据' : '估算数据', {
+        base: actualBasePrice.toFixed(4),
+        target: targetPrice.toFixed(4),
+        change: actualChangePercent.toFixed(2) + '%'
+    });
     
     for (let i = 0; i < points; i++) {
         const progress = i / (points - 1);
         const time = getTradeTime(i, points);
         
-        // 简单线性插值：从昨收(basePrice)到当前估算(targetPrice)
-        const price = basePrice + (targetPrice - basePrice) * progress;
+        // 简单线性插值：从昨收到当前价格
+        const price = actualBasePrice + (targetPrice - actualBasePrice) * progress;
         
         data.push({
             time: time,
             price: price,
-            change: ((price - basePrice) / basePrice * 100)
+            change: ((price - actualBasePrice) / actualBasePrice * 100),
+            realTime: !!realTimeData // 标记是否为实时数据
         });
     }
 
@@ -422,6 +440,176 @@ function getTradeTime(index, totalPoints = 49) {
     const mins = Math.floor(actualMinutes % 60);
 
     return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
+/**
+ * 获取基金分类/板块信息（从天天基金）
+ */
+async function fetchFundSector(fundCode) {
+    try {
+        console.log(`🏷️ 获取基金板块信息: ${fundCode}`);
+        
+        // 天天基金基金详情页可以获取板块信息
+        const timestamp = Date.now();
+        const urls = [
+            // 通过Vercel代理获取基金详情
+            `/api/fund-detail?code=${fundCode}&_=${timestamp}`,
+            // 直接访问
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://fund.eastmoney.com/pingzhongdata/${fundCode}.js?v=${timestamp}`)}`
+        ];
+        
+        for (const url of urls) {
+            try {
+                const response = await fetchWithTimeout(url, {
+                    headers: {
+                        'Accept': '*/*',
+                        'Referer': 'https://fund.eastmoney.com/'
+                    }
+                }, 5000);
+                
+                if (!response.ok) continue;
+                
+                const text = await response.text();
+                
+                // 解析天天基金的JS数据
+                // 尝试提取基金类型和行业配置
+                let sector = '混合型基金';
+                let fundType = '混合型';
+                
+                // 从JS中提取基金类型
+                const typeMatch = text.match(/fS_name\s*=\s*["']([^"']+)["']/);
+                if (typeMatch) {
+                    fundType = typeMatch[1];
+                }
+                
+                // 尝试提取行业配置（如果有）
+                const sectorMatch = text.match(/stock_shares\s*=\s*(\[[^\]]+\])/);
+                if (sectorMatch) {
+                    try {
+                        const sectors = JSON.parse(sectorMatch[1]);
+                        if (sectors && sectors.length > 0) {
+                            // 取前三大行业
+                            sector = sectors.slice(0, 3).map(s => s.name || s.industry).join('、');
+                        }
+                    } catch (e) {
+                        // 解析失败使用默认值
+                    }
+                }
+                
+                // 如果无法解析，根据基金代码特征判断
+                if (sector === '混合型基金') {
+                    // ETF联接基金
+                    if (text.includes('ETF') || fundCode.startsWith('01')) {
+                        sector = 'ETF联接基金';
+                    } else if (text.includes('指数') || text.includes('沪深300') || text.includes('中证')) {
+                        sector = '指数型基金';
+                    } else if (text.includes('债券')) {
+                        sector = '债券型基金';
+                    } else if (text.includes('货币')) {
+                        sector = '货币型基金';
+                    }
+                }
+                
+                console.log(`✅ ${fundCode} 板块: ${sector}`);
+                return { sector, fundType };
+                
+            } catch (e) {
+                continue;
+            }
+        }
+        
+        throw new Error('获取板块信息失败');
+    } catch (error) {
+        console.warn(`⚠️ 无法获取 ${fundCode} 板块信息:`, error.message);
+        // 返回默认值
+        return { sector: '混合型基金', fundType: '混合型' };
+    }
+}
+
+/**
+ * 获取基金实时估值分时数据（从Eastmoney）
+ * 这是一个异步API，获取真实的当日分时估值数据
+ */
+async function fetchFundIntradayData(fundCode) {
+    try {
+        console.log(`📈 获取分时估值数据: ${fundCode}`);
+        
+        // Eastmoney基金实时估值API（分时数据）
+        const timestamp = Date.now();
+        const urls = [
+            // 尝试通过Vercel代理
+            `/api/fund-intraday?code=${fundCode}&_=${timestamp}`,
+            // 直接访问（需要CORS代理）
+            `https://push2.eastmoney.com/api/qt/stock/get?secid=0.${fundCode}&fields=f43,f44,f45,f46,f47,f48,f50,f51,f52,f57,f58,f60,f107,f108,f170&_=${timestamp}`,
+            // 备用接口
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://push2.eastmoney.com/api/qt/stock/get?secid=0.${fundCode}&fields=f43,f44,f45,f46,f47,f48,f50,f51,f52,f57,f58,f60,f107,f108,f170&_=${timestamp}`)}`
+        ];
+        
+        for (const url of urls) {
+            try {
+                const response = await fetchWithTimeout(url, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Referer': 'https://fund.eastmoney.com/'
+                    }
+                }, 5000);
+                
+                if (!response.ok) continue;
+                
+                const text = await response.text();
+                
+                // 解析jsonp格式
+                let data;
+                if (text.includes('jsonpgz')) {
+                    const match = text.match(/jsonpgz\((.+?)\);?$/);
+                    if (match) {
+                        data = JSON.parse(match[1]);
+                    }
+                } else {
+                    data = JSON.parse(text);
+                }
+                
+                if (data && data.data) {
+                    // 解析Eastmoney返回的数据
+                    // f43: 当前价, f44: 最高价, f45: 最低价, f46: 开盘价
+                    // f47: 成交量, f48: 成交额, f50: 量比, f51: 外盘
+                    // f52: 内盘, f57: 代码, f58: 名称, f60: 昨收
+                    // f107: 涨跌幅, f108: 涨跌额, f170: 涨速
+                    const d = data.data;
+                    const currentPrice = parseFloat(d.f43) / 100; // 需要除以100
+                    const preClose = parseFloat(d.f60) / 100;
+                    const openPrice = parseFloat(d.f46) / 100;
+                    const highPrice = parseFloat(d.f44) / 100;
+                    const lowPrice = parseFloat(d.f45) / 100;
+                    const changePercent = parseFloat(d.f107);
+                    
+                    console.log(`✅ 获取到 ${fundCode} 实时数据:`, {
+                        current: currentPrice,
+                        preClose: preClose,
+                        change: changePercent
+                    });
+                    
+                    return {
+                        currentPrice,
+                        preClose,
+                        openPrice,
+                        highPrice,
+                        lowPrice,
+                        changePercent,
+                        dataSource: 'eastmoney'
+                    };
+                }
+            } catch (e) {
+                console.warn(`❌ 数据源失败: ${url.substring(0, 50)}...`, e.message);
+                continue;
+            }
+        }
+        
+        throw new Error('所有数据源均失败');
+    } catch (error) {
+        console.error(`❌ 获取分时数据失败 ${fundCode}:`, error);
+        return null;
+    }
 }
 
 // 初始化加载
@@ -659,32 +847,58 @@ async function fetchFundData(fundCode) {
         }
     ];
 
-    for (const source of dataSources) {
-        try {
-            console.log(`📊 尝试[${source.name}]获取基金 ${fundCode}...`);
-            
-            const response = await fetchWithTimeout(source.url, {
-                headers: {
-                    'Accept': '*/*',
+    let fundData = null;
+    
+    // 并行获取基础数据和板块信息
+    const fetchPromises = [];
+    
+    // 1. 获取基础净值数据
+    fetchPromises.push((async () => {
+        for (const source of dataSources) {
+            try {
+                console.log(`📊 尝试[${source.name}]获取基金 ${fundCode}...`);
+                
+                const response = await fetchWithTimeout(source.url, {
+                    headers: {
+                        'Accept': '*/*',
+                    }
+                }, 8000);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
                 }
-            }, 8000);
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                fundData = await parseFundResponse(response);
+                console.log(`✅ [${source.name}]成功获取 ${fundCode}: ${fundData.name}`);
+                return;
+                
+            } catch (error) {
+                console.warn(`❌ [${source.name}]失败: ${error.message}`);
+                continue;
             }
-
-            const data = await parseFundResponse(response);
-            console.log(`✅ [${source.name}]成功获取 ${fundCode}: ${data.name}`);
-            return data;
-            
-        } catch (error) {
-            console.warn(`❌ [${source.name}]失败: ${error.message}`);
-            continue;
         }
+        throw new Error('所有数据源均失败');
+    })());
+    
+    // 2. 获取板块信息
+    const sectorPromise = fetchFundSector(fundCode);
+    
+    try {
+        await Promise.all([fetchPromises[0], sectorPromise]);
+        
+        // 获取板块信息
+        const sectorInfo = await sectorPromise;
+        
+        if (fundData) {
+            fundData.sector = sectorInfo.sector;
+            fundData.fundType = sectorInfo.fundType;
+        }
+        
+        return fundData;
+    } catch (error) {
+        console.error(`❌ 获取基金数据失败 ${fundCode}:`, error);
+        return fundData; // 即使板块信息失败，也返回基础数据
     }
-
-    console.error(`❌ 所有数据源均失败: ${fundCode}`);
-    return null;
 }
 
 /**
@@ -1012,22 +1226,12 @@ function closeNewsModal() {
 // ====================
 // ECharts 图表实例
 // ====================
-let chartInstance = null;
+let sectorChartInstance = null;
+let performanceChartInstance = null;
 
-// 初始化 ECharts
+// 初始化 ECharts（保留兼容）
 function initChart() {
-    const chartDom = document.getElementById('fundChart');
-    if (!chartDom) return null;
-
-    if (chartInstance) {
-        chartInstance.dispose();
-    }
-
-    chartInstance = echarts.init(chartDom, null, {
-        renderer: 'svg'
-    });
-
-    return chartInstance;
+    return null;
 }
 
 // 窗口大小变化时调整图表（带防抖）
@@ -1035,387 +1239,18 @@ let resizeTimer;
 window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-        if (chartInstance) {
-            chartInstance.resize();
+        if (sectorChartInstance) {
+            sectorChartInstance.resize();
+        }
+        if (performanceChartInstance) {
+            performanceChartInstance.resize();
         }
     }, 250);
 });
 
 // ====================
-// 分时图渲染 - ECharts
+// 新图表系统（关联板块 + 业绩走势）
 // ====================
-async function renderIntradayChart(data) {
-    if (!chartInstance) {
-        chartInstance = initChart();
-    }
-    if (!chartInstance) return;
-
-    const intradayData = await generateIntradayData(data.nav, data.changePercent, data.code || 'default');
-    const isUp = data.changePercent >= 0;
-    const lineColor = isUp ? '#EF4444' : '#10B981';
-
-    const times = intradayData.map(d => d.time);
-    const prices = intradayData.map(d => d.price);
-
-    const option = {
-        grid: {
-            top: '15%',
-            left: '0%',
-            right: '1%',
-            bottom: '10%',
-            containLabel: true
-        },
-        tooltip: {
-            trigger: 'axis',
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            borderColor: 'rgba(148, 163, 184, 0.2)',
-            borderWidth: 1,
-            textStyle: {
-                color: '#1e293b',
-                fontSize: 13
-            },
-            formatter: function(params) {
-                const dataIndex = params[0].dataIndex;
-                const item = intradayData[dataIndex];
-                const time = item.time;
-                const price = item.price.toFixed(4);
-                const change = item.change.toFixed(2);
-                const changeColor = item.change >= 0 ? '#EF4444' : '#10B981';
-                const changeSign = item.change >= 0 ? '+' : '';
-                
-                return `
-                    <div style="padding: 8px;">
-                        <div style="font-weight: 600; margin-bottom: 4px; color: #64748b;">${time}</div>
-                        <div style="font-size: 16px; font-weight: 700; margin-bottom: 2px;">¥${price}</div>
-                        <div style="color: ${changeColor}; font-size: 13px;">${changeSign}${change}%</div>
-                    </div>
-                `;
-            }
-        },
-        xAxis: {
-            type: 'category',
-            data: times,
-            boundaryGap: false,
-            axisLine: { show: false },
-            axisTick: {
-                show: true,
-                alignWithLabel: true,
-                lineStyle: { color: 'rgba(148, 163, 184, 0.2)' }
-            },
-            axisLabel: {
-                color: '#94A3B8',
-                fontSize: 11,
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", sans-serif',
-                interval: 11,
-                formatter: function(value, index) {
-                    const showLabels = ['09:30', '10:30', '11:30', '13:00', '14:00', '15:00'];
-                    return showLabels.includes(value) ? value : '';
-                }
-            },
-            splitLine: {
-                show: true,
-                lineStyle: {
-                    color: 'rgba(148, 163, 184, 0.08)',
-                    type: 'solid'
-                },
-                interval: 11
-            }
-        },
-        yAxis: {
-            type: 'value',
-            scale: true,
-            axisLine: { show: false },
-            axisTick: { show: false },
-            axisLabel: { show: false },
-            splitLine: {
-                show: true,
-                lineStyle: {
-                    color: 'rgba(148, 163, 184, 0.12)',
-                    type: 'dashed'
-                }
-            }
-        },
-        series: [
-            {
-                type: 'line',
-                data: prices,
-                smooth: 0.3,
-                symbol: 'none',
-                lineStyle: {
-                    color: lineColor,
-                    width: 2.5
-                },
-                areaStyle: {
-                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: isUp ? 'rgba(239, 68, 68, 0.35)' : 'rgba(16, 185, 129, 0.35)' },
-                        { offset: 0.6, color: isUp ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)' },
-                        { offset: 1, color: isUp ? 'rgba(239, 68, 68, 0.02)' : 'rgba(16, 185, 129, 0.02)' }
-                    ])
-                },
-                markLine: {
-                    symbol: 'none',
-                    silent: true,
-                    data: [
-                        {
-                            yAxis: data.nav,
-                            lineStyle: {
-                                color: 'rgba(139, 92, 246, 0.4)',
-                                type: 'dashed',
-                                width: 1.5
-                            },
-                            label: { show: false }
-                        }
-                    ]
-                },
-                markPoint: {
-                    symbol: 'circle',
-                    symbolSize: 8,
-                    data: [
-                        {
-                            coord: [prices.length - 1, prices[prices.length - 1]],
-                            itemStyle: {
-                                color: lineColor,
-                                borderColor: '#fff',
-                                borderWidth: 2
-                            }
-                        }
-                    ],
-                    label: { show: false }
-                }
-            }
-        ],
-        graphic: [
-            {
-                type: 'group',
-                right: 10,
-                top: 8,
-                children: [
-                    {
-                        type: 'rect',
-                        shape: { width: 60, height: 24, r: 6 },
-                        style: { fill: isUp ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.12)' }
-                    },
-                    {
-                        type: 'text',
-                        style: {
-                            text: (data.changePercent >= 0 ? '+' : '') + data.changePercent.toFixed(2) + '%',
-                            fill: lineColor,
-                            font: 'bold 13px -apple-system, BlinkMacSystemFont, "Inter", sans-serif',
-                            textAlign: 'center',
-                            textVerticalAlign: 'middle',
-                            textBaseline: 'middle'
-                        },
-                        x: 30,
-                        y: 12
-                    }
-                ]
-            }
-        ],
-        animation: true,
-        animationDuration: 500
-    };
-
-    chartInstance.setOption(option, true);
-}
-
-// 周期图表渲染（月、年、全部）- ECharts
-async function renderPeriodChart(data, period) {
-    if (!chartInstance) {
-        chartInstance = initChart();
-    }
-    if (!chartInstance) return;
-
-    const isUp = data.changePercent >= 0;
-    const lineColor = isUp ? '#EF4444' : '#10B981';
-
-    const pointsCount = { month: 30, year: 12, all: 24 }[period];
-    const periodData = await generatePeriodData(data.nav, data.changePercent, pointsCount, period, data.code || 'default');
-
-    // 生成标签：如果有真实日期数据就使用，否则使用默认格式
-    const labels = periodData.map((d, i) => {
-        // 如果有真实日期，优先使用
-        if (d.date) {
-            const date = new Date(d.date);
-            if (period === 'month') {
-                // 月度视图：显示日期，如 "1/15"
-                return `${date.getMonth() + 1}/${date.getDate()}`;
-            } else if (period === 'year') {
-                // 年度视图：显示月份，如 "1月"
-                return `${date.getMonth() + 1}月`;
-            } else {
-                // 全部视图：显示年月，如 "2024-01"
-                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-            }
-        }
-        
-        // 模拟数据的默认标签
-        if (period === 'month') {
-            return i % 7 === 0 ? `${i + 1}日` : '';
-        } else if (period === 'year') {
-            return `${i + 1}月`;
-        } else {
-            return i % 6 === 0 ? `${20 + Math.floor(i / 12)}年` : '';
-        }
-    });
-
-    const option = {
-        grid: {
-            top: '15%',
-            left: '0%',
-            right: '1%',
-            bottom: '10%',
-            containLabel: true
-        },
-        tooltip: {
-            trigger: 'axis',
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            borderColor: 'rgba(148, 163, 184, 0.2)',
-            borderWidth: 1,
-            textStyle: {
-                color: '#1e293b',
-                fontSize: 13
-            },
-            formatter: function(params) {
-                const dataIndex = params[0].dataIndex;
-                const item = periodData[dataIndex];
-                const date = item.date || labels[dataIndex];
-                const value = item.value.toFixed(4);
-                const change = item.change ? item.change.toFixed(2) : '0.00';
-                const changeColor = item.change >= 0 ? '#EF4444' : '#10B981';
-                const changeSign = item.change >= 0 ? '+' : '';
-                
-                return `
-                    <div style="padding: 8px;">
-                        <div style="font-weight: 600; margin-bottom: 4px; color: #64748b;">${date}</div>
-                        <div style="font-size: 16px; font-weight: 700; margin-bottom: 2px;">¥${value}</div>
-                        <div style="color: ${changeColor}; font-size: 13px;">${changeSign}${change}%</div>
-                    </div>
-                `;
-            }
-        },
-        xAxis: {
-            type: 'category',
-            data: labels,
-            boundaryGap: false,
-            axisLine: { show: false },
-            axisTick: {
-                show: true,
-                alignWithLabel: true,
-                lineStyle: { color: 'rgba(148, 163, 184, 0.2)' }
-            },
-            axisLabel: {
-                color: '#94A3B8',
-                fontSize: 11,
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", sans-serif',
-                interval: period === 'month' ? 6 : 'auto',
-                rotate: period === 'all' ? 45 : 0
-            },
-            splitLine: {
-                show: true,
-                lineStyle: {
-                    color: 'rgba(148, 163, 184, 0.08)',
-                    type: 'solid'
-                }
-            }
-        },
-        yAxis: {
-            type: 'value',
-            scale: true,
-            axisLine: { show: false },
-            axisTick: { show: false },
-            axisLabel: { show: false },
-            splitLine: {
-                show: true,
-                lineStyle: {
-                    color: 'rgba(148, 163, 184, 0.12)',
-                    type: 'dashed'
-                }
-            }
-        },
-        series: [
-            {
-                type: 'line',
-                data: periodData.map(d => d.value),
-                smooth: 0.3,
-                symbol: 'none',
-                lineStyle: {
-                    color: lineColor,
-                    width: 2.5
-                },
-                areaStyle: {
-                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: isUp ? 'rgba(239, 68, 68, 0.35)' : 'rgba(16, 185, 129, 0.35)' },
-                        { offset: 0.6, color: isUp ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)' },
-                        { offset: 1, color: isUp ? 'rgba(239, 68, 68, 0.02)' : 'rgba(16, 185, 129, 0.02)' }
-                    ])
-                },
-                markLine: {
-                    symbol: 'none',
-                    silent: true,
-                    data: [
-                        {
-                            yAxis: data.nav,
-                            lineStyle: {
-                                color: 'rgba(139, 92, 246, 0.4)',
-                                type: 'dashed',
-                                width: 1.5
-                            },
-                            label: { show: false }
-                        }
-                    ]
-                },
-                markPoint: {
-                    symbol: 'circle',
-                    symbolSize: 8,
-                    data: [
-                        {
-                            coord: [periodData.length - 1, periodData[periodData.length - 1].value],
-                            itemStyle: {
-                                color: lineColor,
-                                borderColor: '#fff',
-                                borderWidth: 2
-                            }
-                        }
-                    ],
-                    label: { show: false }
-                }
-            }
-        ],
-        graphic: [
-            {
-                type: 'group',
-                right: 10,
-                top: 8,
-                children: [
-                    {
-                        type: 'rect',
-                        shape: { width: 60, height: 24, r: 6 },
-                        style: { fill: isUp ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.12)' }
-                    },
-                    {
-                        type: 'text',
-                        style: {
-                            text: (data.changePercent >= 0 ? '+' : '') + data.changePercent.toFixed(2) + '%',
-                            fill: lineColor,
-                            font: 'bold 13px -apple-system, BlinkMacSystemFont, "Inter", sans-serif',
-                            textAlign: 'center',
-                            textVerticalAlign: 'middle',
-                            textBaseline: 'middle'
-                        },
-                        x: 30,
-                        y: 12
-                    }
-                ]
-            }
-        ],
-        animation: true,
-        animationDuration: 500
-    };
-
-    chartInstance.setOption(option, true);
-}
-
-// 周期数据缓存（使用LRU策略）
 const periodDataCache = new LRUCache(MAX_CACHE_SIZE);
 
 /**
@@ -1523,51 +1358,13 @@ function generateSimulatedPeriodData(basePrice, changePercent, points, period, f
 }
 
 function renderDefaultChart() {
-    if (!chartInstance) {
-        chartInstance = initChart();
+    // 清空图表并显示提示
+    if (sectorChartInstance) {
+        sectorChartInstance.clear();
     }
-    if (!chartInstance) return;
-
-    const option = {
-        grid: {
-            top: '15%',
-            left: '0%',
-            right: '1%',
-            bottom: '10%',
-            containLabel: true
-        },
-        xAxis: {
-            type: 'category',
-            data: [],
-            boundaryGap: false,
-            axisLine: { show: false },
-            axisTick: { show: false },
-            axisLabel: { show: false },
-            splitLine: { show: false }
-        },
-        yAxis: {
-            type: 'value',
-            axisLine: { show: false },
-            axisTick: { show: false },
-            axisLabel: { show: false },
-            splitLine: { show: false }
-        },
-        series: [],
-        graphic: [
-            {
-                type: 'text',
-                left: 'center',
-                top: 'center',
-                style: {
-                    text: '点击左侧基金查看走势',
-                    fill: '#94A3B8',
-                    font: '14px -apple-system, BlinkMacSystemFont, "Inter", sans-serif'
-                }
-            }
-        ]
-    };
-
-    chartInstance.setOption(option, true);
+    if (performanceChartInstance) {
+        performanceChartInstance.clear();
+    }
 }
 
 // 选择基金并更新图表
@@ -1584,69 +1381,416 @@ function selectFund(fundCode) {
 
     // 使用 setTimeout 确保 DOM 更新完成后再渲染图表
     setTimeout(() => {
-        renderChart(fundCode, currentChartPeriod);
+        renderCurrentChart();
     }, 0);
 }
 
-// 切换图表周期
-function switchChartPeriod(period) {
-    currentChartPeriod = period;
-
-    // 更新按钮状态
-    document.querySelectorAll('.period-tab').forEach(tab => {
-        tab.classList.remove('active');
-        tab.setAttribute('aria-selected', 'false');
-        if (tab.dataset.period === period) {
-            tab.classList.add('active');
-            tab.setAttribute('aria-selected', 'true');
+// 切换图表Tab
+function switchChartTab(tab) {
+    currentChartTab = tab;
+    
+    // 更新Tab按钮状态
+    document.querySelectorAll('.chart-tab').forEach(t => {
+        t.classList.remove('active');
+        if (t.dataset.chart === tab) {
+            t.classList.add('active');
         }
     });
-
-    // 使用 setTimeout 确保 DOM 更新完成后再渲染图表
+    
+    // 切换内容区域
+    document.querySelectorAll('.chart-content').forEach(c => {
+        c.classList.remove('active');
+    });
+    
+    const contentId = tab === 'sector' ? 'sectorChartContent' : 'performanceChartContent';
+    const contentEl = document.getElementById(contentId);
+    if (contentEl) {
+        contentEl.classList.add('active');
+    }
+    
+    // 重新渲染对应图表
     setTimeout(() => {
-        // 如果有选中的基金，重新渲染图表
         if (selectedFundCode) {
-            renderChart(selectedFundCode, period);
-        } else {
-            // 显示默认图表
-            renderDefaultChart();
+            renderCurrentChart();
         }
     }, 0);
 }
 
-// 通用图表渲染函数
-async function renderChart(fundCode, period) {
-    const titleEl = document.getElementById('chartTitle');
+// 切换业绩走势周期
+function switchPeriod(period) {
+    currentPerformancePeriod = period;
+    
+    // 更新按钮状态
+    document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.period === period) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // 重新渲染图表
+    setTimeout(() => {
+        if (selectedFundCode) {
+            renderPerformanceChart();
+        }
+    }, 0);
+}
 
-    if (!titleEl) return;
-
-    const fund = portfolio.funds.find(f => f.code === fundCode);
-    const data = portfolio.dataCache[fundCode];
-
-    if (!fund || !data || !data.estimate) {
-        titleEl.textContent = '收益走势';
-        renderDefaultChart();
-        return;
+// 渲染当前激活的图表
+async function renderCurrentChart() {
+    if (!selectedFundCode) return;
+    
+    const data = portfolio.dataCache[selectedFundCode];
+    if (!data) return;
+    
+    if (currentChartTab === 'sector') {
+        await renderSectorChart(data);
+    } else {
+        await renderPerformanceChart();
     }
+}
 
-    // 根据周期更新标题
-    const periodNames = { day: '分时', month: '月度', year: '年度', all: '全部' };
-    titleEl.textContent = `${data.name} ${periodNames[period]}走势`;
+// 渲染关联板块图表（分时走势）
+async function renderSectorChart(data) {
+    // 更新板块信息
+    const dateEl = document.getElementById('sectorDate');
+    const nameEl = document.getElementById('sectorName');
+    const changeEl = document.getElementById('sectorChange');
+    
+    if (dateEl) dateEl.textContent = `日期 ${data.gztime || '--'}`;
+    if (nameEl) nameEl.textContent = data.sector || '中证电网设备主题';
+    if (changeEl) {
+        const change = data.changePercent || 0;
+        changeEl.textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
+        changeEl.className = 'sector-change ' + (change >= 0 ? 'up' : 'down');
+    }
+    
+    // 更新情绪指标（模拟数据）
+    const bullishEl = document.getElementById('bullishCount');
+    const bearishEl = document.getElementById('bearishCount');
+    if (bullishEl) bullishEl.textContent = Math.floor(Math.random() * 20000 + 20000) + '人';
+    if (bearishEl) bearishEl.textContent = Math.floor(Math.random() * 8000 + 5000) + '人';
+    
+    // 渲染分时图
+    const chartDom = document.getElementById('sectorChart');
+    if (!chartDom) return;
+    
+    if (!sectorChartInstance) {
+        sectorChartInstance = echarts.init(chartDom);
+    }
+    
+    const intradayData = await generateIntradayData(data.nav, data.changePercent, data.code || 'default');
+    const isUp = (data.changePercent || 0) >= 0;
+    const lineColor = isUp ? '#EF4444' : '#10B981';
+    
+    const times = intradayData.map(d => d.time);
+    const prices = intradayData.map(d => d.price);
+    const basePrice = data.nav / (1 + (data.changePercent || 0) / 100);
+    
+    const option = {
+        grid: {
+            top: '5%',
+            left: '2%',
+            right: '2%',
+            bottom: '5%',
+            containLabel: false
+        },
+        tooltip: {
+            trigger: 'axis',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            borderColor: 'rgba(148, 163, 184, 0.2)',
+            borderWidth: 1,
+            textStyle: {
+                color: '#1e293b',
+                fontSize: 12
+            },
+            formatter: function(params) {
+                const dataIndex = params[0].dataIndex;
+                const item = intradayData[dataIndex];
+                return `<div style="padding: 6px;">
+                    <div style="font-weight: 600; margin-bottom: 2px; color: #64748b;">${item.time}</div>
+                    <div style="font-size: 14px; font-weight: 600;">¥${item.price.toFixed(4)}</div>
+                </div>`;
+            }
+        },
+        xAxis: {
+            type: 'category',
+            data: times,
+            boundaryGap: false,
+            axisLine: { show: false },
+            axisTick: { show: false },
+            axisLabel: {
+                color: '#94A3B8',
+                fontSize: 10,
+                interval: 23,
+                formatter: function(value) {
+                    const showLabels = ['09:30', '11:30/13:00', '15:00'];
+                    return showLabels.includes(value) ? value.replace('/13:00', '') : '';
+                }
+            },
+            splitLine: {
+                show: true,
+                lineStyle: {
+                    color: 'rgba(148, 163, 184, 0.08)',
+                    type: 'solid'
+                },
+                interval: 23
+            }
+        },
+        yAxis: {
+            type: 'value',
+            scale: true,
+            axisLine: { show: false },
+            axisTick: { show: false },
+            axisLabel: { show: false },
+            splitLine: { show: false },
+            min: function(value) {
+                return basePrice * 0.98;
+            },
+            max: function(value) {
+                return basePrice * 1.02;
+            }
+        },
+        series: [
+            {
+                type: 'line',
+                data: prices,
+                smooth: true,
+                symbol: 'none',
+                lineStyle: {
+                    color: lineColor,
+                    width: 1.5
+                },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: isUp ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)' },
+                        { offset: 1, color: isUp ? 'rgba(239, 68, 68, 0.02)' : 'rgba(16, 185, 129, 0.02)' }
+                    ])
+                },
+                markLine: {
+                    symbol: 'none',
+                    silent: true,
+                    data: [
+                        {
+                            yAxis: basePrice,
+                            lineStyle: {
+                                color: 'rgba(148, 163, 184, 0.5)',
+                                type: 'dashed',
+                                width: 1
+                            },
+                            label: { show: false }
+                        }
+                    ]
+                }
+            }
+        ],
+        animation: true,
+        animationDuration: 500
+    };
+    
+    sectorChartInstance.setOption(option, true);
+}
 
-    switch (period) {
-        case 'day':
-            await renderIntradayChart(data);
+// 渲染业绩走势图表
+async function renderPerformanceChart() {
+    if (!selectedFundCode) return;
+    
+    const data = portfolio.dataCache[selectedFundCode];
+    if (!data) return;
+    
+    const chartDom = document.getElementById('performanceChart');
+    if (!chartDom) return;
+    
+    if (!performanceChartInstance) {
+        performanceChartInstance = echarts.init(chartDom);
+    }
+    
+    // 获取历史数据
+    const historyData = await fetchFundHistory(selectedFundCode);
+    
+    // 根据周期筛选数据
+    const now = new Date();
+    let startDate = new Date();
+    let labelFormat = 'MM-dd';
+    
+    switch (currentPerformancePeriod) {
+        case '1m':
+            startDate.setMonth(now.getMonth() - 1);
             break;
-        case 'month':
-            await renderPeriodChart(data, 'month');
+        case '3m':
+            startDate.setMonth(now.getMonth() - 3);
             break;
-        case 'year':
-            await renderPeriodChart(data, 'year');
+        case '6m':
+            startDate.setMonth(now.getMonth() - 6);
             break;
-        case 'all':
-            await renderPeriodChart(data, 'all');
+        case '1y':
+            startDate.setFullYear(now.getFullYear() - 1);
+            labelFormat = 'yyyy-MM';
+            break;
+        case '3y':
+            startDate.setFullYear(now.getFullYear() - 3);
+            labelFormat = 'yyyy-MM';
             break;
     }
+    
+    let filteredData = historyData.filter(d => new Date(d.date) >= startDate);
+    if (filteredData.length < 5) {
+        filteredData = historyData.slice(-30);
+    }
+    
+    // 更新图例
+    const fundReturnEl = document.getElementById('legendFundReturn');
+    const marketReturnEl = document.getElementById('legendMarketReturn');
+    const costPriceEl = document.getElementById('legendCostPrice');
+    
+    if (fundReturnEl && filteredData.length >= 2) {
+        const startValue = filteredData[0].value;
+        const endValue = filteredData[filteredData.length - 1].value;
+        const return_pct = ((endValue - startValue) / startValue * 100);
+        fundReturnEl.textContent = (return_pct >= 0 ? '+' : '') + return_pct.toFixed(2) + '%';
+        fundReturnEl.style.color = return_pct >= 0 ? '#EF4444' : '#10B981';
+    }
+    
+    if (marketReturnEl) {
+        // 模拟沪深300收益率
+        const marketReturn = (Math.random() * 10 - 2).toFixed(2);
+        marketReturnEl.textContent = (parseFloat(marketReturn) >= 0 ? '+' : '') + marketReturn + '%';
+        marketReturnEl.style.color = parseFloat(marketReturn) >= 0 ? '#F59E0B' : '#10B981';
+    }
+    
+    const fund = portfolio.funds.find(f => f.code === selectedFundCode);
+    if (costPriceEl && fund) {
+        costPriceEl.textContent = fund.costPrice.toFixed(4);
+    }
+    
+    // 生成模拟的沪深300数据
+    const marketData = filteredData.map((d, i) => {
+        const baseValue = d.value;
+        const marketChange = (Math.random() - 0.5) * 0.02;
+        return baseValue * (1 + marketChange * (i % 5 - 2));
+    });
+    
+    const dates = filteredData.map(d => {
+        const date = new Date(d.date);
+        if (currentPerformancePeriod === '1y' || currentPerformancePeriod === '3y') {
+            return `${date.getMonth() + 1}月`;
+        }
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+    });
+    
+    const values = filteredData.map(d => d.value);
+    const isUp = values[values.length - 1] >= values[0];
+    const fundColor = isUp ? '#6366f1' : '#10B981';
+    
+    const option = {
+        grid: {
+            top: '10%',
+            left: '2%',
+            right: '2%',
+            bottom: '5%',
+            containLabel: false
+        },
+        tooltip: {
+            trigger: 'axis',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            borderColor: 'rgba(148, 163, 184, 0.2)',
+            borderWidth: 1,
+            textStyle: {
+                color: '#1e293b',
+                fontSize: 12
+            },
+            formatter: function(params) {
+                const dataIndex = params[0].dataIndex;
+                const date = filteredData[dataIndex]?.date || dates[dataIndex];
+                const value = params[0].value.toFixed(4);
+                return `<div style="padding: 6px;">
+                    <div style="font-weight: 600; margin-bottom: 2px; color: #64748b;">${date}</div>
+                    <div style="font-size: 14px; font-weight: 600;">¥${value}</div>
+                </div>`;
+            }
+        },
+        xAxis: {
+            type: 'category',
+            data: dates,
+            boundaryGap: false,
+            axisLine: { show: false },
+            axisTick: { show: false },
+            axisLabel: {
+                color: '#94A3B8',
+                fontSize: 10,
+                interval: Math.floor(dates.length / 4)
+            },
+            splitLine: {
+                show: true,
+                lineStyle: {
+                    color: 'rgba(148, 163, 184, 0.08)',
+                    type: 'solid'
+                }
+            }
+        },
+        yAxis: {
+            type: 'value',
+            scale: true,
+            axisLine: { show: false },
+            axisTick: { show: false },
+            axisLabel: { show: false },
+            splitLine: { show: false }
+        },
+        series: [
+            {
+                name: '本基金',
+                type: 'line',
+                data: values,
+                smooth: true,
+                symbol: 'none',
+                lineStyle: {
+                    color: fundColor,
+                    width: 2
+                },
+                markPoint: {
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    data: [
+                        {
+                            coord: [values.length - 1, values[values.length - 1]],
+                            itemStyle: {
+                                color: fundColor,
+                                borderColor: '#fff',
+                                borderWidth: 2
+                            }
+                        }
+                    ],
+                    label: { show: false }
+                }
+            },
+            {
+                name: '沪深300',
+                type: 'line',
+                data: marketData,
+                smooth: true,
+                symbol: 'none',
+                lineStyle: {
+                    color: '#F59E0B',
+                    width: 1.5
+                }
+            },
+            {
+                name: '成本价',
+                type: 'line',
+                data: values.map(() => fund?.costPrice || values[0]),
+                symbol: 'none',
+                lineStyle: {
+                    color: 'rgba(148, 163, 184, 0.6)',
+                    type: 'dashed',
+                    width: 1
+                }
+            }
+        ],
+        animation: true,
+        animationDuration: 500
+    };
+    
+    performanceChartInstance.setOption(option, true);
 }
 
 async function updateUI() {
@@ -1676,7 +1820,7 @@ async function updateUI() {
         // 渲染图表（async 函数调用）
         // 如果有选中的基金，更新图表；否则显示默认图表
         if (selectedFundCode && portfolio.dataCache[selectedFundCode]) {
-            await renderChart(selectedFundCode, currentChartPeriod);
+            await renderCurrentChart();
         } else {
             renderDefaultChart();
         }
@@ -2592,7 +2736,7 @@ function toggleDarkMode() {
     }
     // 重新渲染图表以适应新主题
     if (selectedFundCode && portfolio.dataCache[selectedFundCode]) {
-        setTimeout(() => renderChart(selectedFundCode, currentChartPeriod), 100);
+        setTimeout(() => renderCurrentChart(), 100);
     }
 }
 
@@ -2804,7 +2948,8 @@ globalThis.setSellShares = setSellShares;
 globalThis.confirmTrade = confirmTrade;
 globalThis.handleFundClick = handleFundClick;
 globalThis.selectFund = selectFund;
-globalThis.switchChartPeriod = switchChartPeriod;
+globalThis.switchChartTab = switchChartTab;
+globalThis.switchPeriod = switchPeriod;
 globalThis.openNewsModal = openNewsModal;
 globalThis.closeNewsModal = closeNewsModal;
 globalThis.fetchNews = fetchNews;

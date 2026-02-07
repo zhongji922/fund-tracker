@@ -1200,3 +1200,207 @@ body {
 .status-text {
     color: var(--text-secondary);
 }
+
+/* ========== 图表样式 - 养基宝风格 ========== */
+
+/* 图表Tab切换 */
+.chart-tabs-container {
+    padding: var(--space-md) var(--space-md) 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.chart-tabs {
+    display: flex;
+    gap: var(--space-lg);
+    justify-content: center;
+}
+
+.chart-tab {
+    padding: var(--space-sm) var(--space-md);
+    border: none;
+    background: transparent;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.chart-tab:hover {
+    color: var(--text-primary);
+}
+
+.chart-tab.active {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.chart-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -9px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 3px;
+    background: var(--primary);
+    border-radius: 2px;
+}
+
+/* 图表内容切换 */
+.chart-content {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.chart-content.active {
+    display: flex;
+}
+
+/* 关联板块样式 */
+.sector-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    font-size: 13px;
+}
+
+.sector-date {
+    color: var(--text-tertiary);
+}
+
+.sector-name {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.sector-change {
+    font-weight: 600;
+}
+
+.sector-change.up {
+    color: var(--danger);
+}
+
+.sector-change.down {
+    color: var(--success);
+}
+
+.sector-sentiment {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    border-top: 1px solid var(--border-light);
+}
+
+.sentiment-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: 4px 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.sentiment-label {
+    font-size: 12px;
+}
+
+.sentiment-label.bullish {
+    color: var(--danger);
+}
+
+.sentiment-label.bearish {
+    color: var(--success);
+}
+
+.sentiment-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* 业绩走势样式 */
+.performance-header {
+    padding: var(--space-sm) var(--space-md);
+}
+
+.performance-legend {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+    font-size: 13px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.legend-item.fund {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.legend-item.market {
+    color: var(--warning);
+}
+
+.legend-item.cost {
+    color: var(--text-secondary);
+}
+
+.legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.legend-item.fund .legend-dot {
+    background: var(--primary);
+}
+
+.legend-item.market .legend-dot {
+    background: var(--warning);
+}
+
+.legend-line {
+    width: 12px;
+    height: 2px;
+    background: var(--text-tertiary);
+    border-radius: 1px;
+}
+
+.period-tabs-small {
+    display: flex;
+    gap: var(--space-xs);
+    padding: 0 var(--space-md) var(--space-sm);
+    justify-content: center;
+}
+
+.period-btn {
+    padding: 4px 12px;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.period-btn:hover {
+    color: var(--text-primary);
+}
+
+.period-btn.active {
+    background: var(--bg-secondary);
+    color: var(--primary);
+    font-weight: 500;
+}

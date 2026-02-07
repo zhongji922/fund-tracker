@@ -118,17 +118,65 @@
                 <div class="main-content-grid">
                     <!-- 左侧：图表 -->
                     <div class="chart-panel">
-                        <div class="panel-header">
-                            <h3 id="chartTitle">收益走势</h3>
-                            <div class="period-tabs">
-                                <button class="tab-btn active" data-period="day" onclick="switchChartPeriod('day')">日</button>
-                                <button class="tab-btn" data-period="month" onclick="switchChartPeriod('month')">月</button>
-                                <button class="tab-btn" data-period="year" onclick="switchChartPeriod('year')">年</button>
-                                <button class="tab-btn" data-period="all" onclick="switchChartPeriod('all')">全部</button>
+                        <div class="chart-tabs-container">
+                            <div class="chart-tabs">
+                                <button class="chart-tab active" data-chart="sector" onclick="switchChartTab('sector')">关联板块</button>
+                                <button class="chart-tab" data-chart="performance" onclick="switchChartTab('performance')">业绩走势</button>
                             </div>
                         </div>
-                        <div class="chart-wrapper">
-                            <div id="fundChart" style="width: 100%; height: 100%;"></div>
+                        
+                        <!-- 关联板块内容 -->
+                        <div class="chart-content active" id="sectorChartContent">
+                            <div class="sector-info">
+                                <span class="sector-date" id="sectorDate">日期 --</span>
+                                <span class="sector-name" id="sectorName">--</span>
+                                <span class="sector-change" id="sectorChange">--</span>
+                            </div>
+                            <div class="chart-wrapper">
+                                <div id="sectorChart" style="width: 100%; height: 100%;"></div>
+                            </div>
+                            <div class="sector-sentiment">
+                                <div class="sentiment-item">
+                                    <span class="sentiment-label bullish">看涨</span>
+                                    <span class="sentiment-value" id="bullishCount">--</span>
+                                </div>
+                                <div class="sentiment-item">
+                                    <span class="sentiment-label bearish">看跌</span>
+                                    <span class="sentiment-value" id="bearishCount">--</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 业绩走势内容 -->
+                        <div class="chart-content" id="performanceChartContent">
+                            <div class="performance-header">
+                                <div class="performance-legend">
+                                    <span class="legend-item fund">
+                                        <span class="legend-dot"></span>
+                                        <span id="legendFundName">本基金</span>
+                                        <span id="legendFundReturn">--</span>
+                                    </span>
+                                    <span class="legend-item market">
+                                        <span class="legend-dot"></span>
+                                        沪深300
+                                        <span id="legendMarketReturn">--</span>
+                                    </span>
+                                    <span class="legend-item cost">
+                                        <span class="legend-line"></span>
+                                        成本价 <span id="legendCostPrice">--</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="period-tabs-small">
+                                <button class="period-btn active" data-period="1m" onclick="switchPeriod('1m')">近1月</button>
+                                <button class="period-btn" data-period="3m" onclick="switchPeriod('3m')">近3月</button>
+                                <button class="period-btn" data-period="6m" onclick="switchPeriod('6m')">近6月</button>
+                                <button class="period-btn" data-period="1y" onclick="switchPeriod('1y')">近1年</button>
+                                <button class="period-btn" data-period="3y" onclick="switchPeriod('3y')">近3年</button>
+                            </div>
+                            <div class="chart-wrapper">
+                                <div id="performanceChart" style="width: 100%; height: 100%;"></div>
+                            </div>
                         </div>
                     </div>
 
