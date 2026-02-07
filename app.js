@@ -1901,6 +1901,14 @@ async function confirmTrade() {
 function showAddModal() {
     document.getElementById('addModal').classList.add('active');
     document.getElementById('fundCode').focus();
+    
+    // 重置添加锁和按钮状态
+    isAddingFund = false;
+    const confirmBtn = document.querySelector('#addModal .btn-primary');
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = '确定';
+    }
 }
 
 function hideAddModal() {
@@ -1910,6 +1918,14 @@ function hideAddModal() {
     document.getElementById('fundShares').value = '';
     document.getElementById('fundCost').value = '';
     document.getElementById('addPreview').style.display = 'none';
+    
+    // 重置添加锁和按钮状态
+    isAddingFund = false;
+    const confirmBtn = document.querySelector('#addModal .btn-primary');
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = '确定';
+    }
 }
 
 // 计算添加基金的预览份额
@@ -1933,7 +1949,16 @@ function calculateAddPreview() {
     previewEl.style.display = 'block';
 }
 
+// 添加基金防重复点击锁
+let isAddingFund = false;
+
 async function addFund() {
+    // 防止重复点击
+    if (isAddingFund) {
+        console.log('正在添加基金中，请勿重复点击');
+        return;
+    }
+    
     const code = document.getElementById('fundCode').value.trim();
     const amount = parseFloat(document.getElementById('fundAmount').value);
     const costPrice = parseFloat(document.getElementById('fundCost').value);
@@ -1967,23 +1992,57 @@ async function addFund() {
         return;
     }
 
-    // 先验证基金是否存在
-    updateDataStatus('loading');
-    const fundData = await fetchFundData(code);
-
-    if (!fundData) {
-        alert('基金代码无效或数据获取失败');
-        updateDataStatus('error');
-        return;
+    // 设置锁，防止重复点击
+    isAddingFund = true;
+    
+    // 禁用确定按钮
+    const confirmBtn = document.querySelector('#addModal .btn-primary');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = '添加中...';
     }
 
-    // 添加到持仓
-    portfolio.funds.push({ code, shares: finalShares, costPrice });
-    portfolio.dataCache[code] = fundData;
-    await saveStorage();
+    try {
+        // 先验证基金是否存在
+        updateDataStatus('loading');
+        showToast('正在验证基金...');
+        
+        const fundData = await fetchFundData(code);
 
-    hideAddModal();
-    updateUI();
+        if (!fundData) {
+            alert('基金代码无效或数据获取失败');
+            updateDataStatus('error');
+            return;
+        }
+
+        // 添加到持仓
+        portfolio.funds.push({ code, shares: finalShares, costPrice });
+        portfolio.dataCache[code] = fundData;
+        
+        // 立即关闭弹窗，防止重复点击
+        hideAddModal();
+        
+        // 显示成功提示
+        showToast(`成功添加 ${fundData.name}`);
+        
+        // 保存数据
+        await saveStorage();
+        
+        // 更新UI
+        updateUI();
+        
+    } catch (error) {
+        console.error('添加基金失败:', error);
+        alert('添加基金失败，请重试');
+    } finally {
+        // 解锁
+        isAddingFund = false;
+        // 恢复按钮状态
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = '确定';
+        }
+    }
 }
 
 // ====================
