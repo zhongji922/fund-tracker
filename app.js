@@ -1651,6 +1651,8 @@ async function updateUI() {
     ]);
     renderFundList();
     updateOverview();
+    // 刷新行情模块的自选列表
+    switchMarketTab('self');
     // 获取实时新闻（首次加载或间隔超过5分钟）
     if (!lastNewsUpdate || (new Date() - new Date(lastNewsUpdate)) > 5 * 60 * 1000) {
         await fetchNews();
@@ -2688,5 +2690,143 @@ globalThis.fundApp = { portfolio, updateUI, selectedFundCode, currentChartPeriod
 globalThis.toggleDarkMode = toggleDarkMode;
 globalThis.initTheme = initTheme;
 globalThis.fetchMarketIndices = fetchMarketIndices;
+// ====================
+// 行情模块功能
+// ====================
+
+// 切换行情标签
+function switchMarketTab(tab) {
+    // 更新标签样式
+    document.querySelectorAll('.market-tab').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tab) {
+            btn.classList.add('active');
+        }
+    });
+
+    // 根据标签加载不同数据
+    const marketList = document.getElementById('marketList');
+    if (!marketList) return;
+
+    let html = '';
+    
+    switch(tab) {
+        case 'self':
+            // 自选 - 显示当前持仓
+            html = portfolio.funds.map(fund => {
+                const data = portfolio.dataCache[fund.code];
+                const name = data?.name || '加载中...';
+                const nav = data?.estimate?.toFixed(4) || '--';
+                const change = data?.changePercent || 0;
+                const changeClass = change >= 0 ? 'up' : 'down';
+                const changeStr = change >= 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
+                
+                return `
+                    <div class="market-item" onclick="selectFund('${fund.code}')">
+                        <div class="market-fund-info">
+                            <span class="market-fund-name">${name}</span>
+                            <span class="market-fund-code">${fund.code}</span>
+                        </div>
+                        <div class="market-fund-data">
+                            <span class="market-nav">${nav}</span>
+                            <span class="market-change ${changeClass}">${changeStr}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            break;
+            
+        case 'hot':
+            // 热门基金示例
+            html = `
+                <div class="market-item">
+                    <div class="market-fund-info">
+                        <span class="market-fund-name">招商中证白酒指数</span>
+                        <span class="market-fund-code">161725</span>
+                    </div>
+                    <div class="market-fund-data">
+                        <span class="market-nav">1.2345</span>
+                        <span class="market-change up">+3.21%</span>
+                    </div>
+                </div>
+                <div class="market-item">
+                    <div class="market-fund-info">
+                        <span class="market-fund-name">中欧医疗健康混合</span>
+                        <span class="market-fund-code">003095</span>
+                    </div>
+                    <div class="market-fund-data">
+                        <span class="market-nav">2.5678</span>
+                        <span class="market-change down">-1.23%</span>
+                    </div>
+                </div>
+                <div class="market-item">
+                    <div class="market-fund-info">
+                        <span class="market-fund-name">农银新能源主题</span>
+                        <span class="market-fund-code">002190</span>
+                    </div>
+                    <div class="market-fund-data">
+                        <span class="market-nav">3.4567</span>
+                        <span class="market-change up">+2.45%</span>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'rank':
+            // 涨跌幅排行示例
+            html = `
+                <div class="market-item">
+                    <div class="market-fund-info">
+                        <span class="market-fund-name">招商中证白酒指数</span>
+                        <span class="market-fund-code">161725</span>
+                    </div>
+                    <div class="market-fund-data">
+                        <span class="market-nav">1.2345</span>
+                        <span class="market-change up">+5.67%</span>
+                    </div>
+                </div>
+                <div class="market-item">
+                    <div class="market-fund-info">
+                        <span class="market-fund-name">银河创新成长混合</span>
+                        <span class="market-fund-code">014143</span>
+                    </div>
+                    <div class="market-fund-data">
+                        <span class="market-nav">1.4567</span>
+                        <span class="market-change up">+3.45%</span>
+                    </div>
+                </div>
+                <div class="market-item">
+                    <div class="market-fund-info">
+                        <span class="market-fund-name">易方达蓝筹精选</span>
+                        <span class="market-fund-code">009803</span>
+                    </div>
+                    <div class="market-fund-data">
+                        <span class="market-nav">2.4152</span>
+                        <span class="market-change down">-2.34%</span>
+                    </div>
+                </div>
+            `;
+            break;
+    }
+    
+    marketList.innerHTML = html || '<div class="empty-state">暂无数据</div>';
+}
+
+// 初始化行情标签点击事件
+document.addEventListener('DOMContentLoaded', () => {
+    // 延迟绑定，确保DOM已加载
+    setTimeout(() => {
+        document.querySelectorAll('.market-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                switchMarketTab(tab.dataset.tab);
+            });
+        });
+        
+        // 初始加载自选标签
+        switchMarketTab('self');
+    }, 100);
+});
+
+globalThis.switchMarketTab = switchMarketTab;
 globalThis.exportPortfolio = exportPortfolio;
 globalThis.importPortfolioFromFile = importPortfolioFromFile;

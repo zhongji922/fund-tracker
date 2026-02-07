@@ -230,37 +230,49 @@
                     </div>
                 </div>
 
-                <!-- 最近操作 -->
-                <div class="history-section">
-                    <div class="hud-corner top-left"></div>
-                    <div class="hud-corner top-right"></div>
-                    <div class="hud-corner bottom-left"></div>
-                    <div class="hud-corner bottom-right"></div>
-                    <h3 class="section-title">最近操作</h3>
-                    <div class="history-list">
-                        <div class="history-item">
-                            <div class="history-icon buy">买入</div>
-                            <div class="history-info">
-                                <span class="history-name">永赢半导体产业智选</span>
-                                <span class="history-date">2026-02-05</span>
-                            </div>
-                            <span class="history-amount">+1,000.00</span>
+                <!-- 行情模块 -->
+                <div class="market-section">
+                    <div class="market-header">
+                        <h3 class="section-title">行情</h3>
+                        <div class="market-tabs">
+                            <button class="market-tab active" data-tab="self">自选</button>
+                            <button class="market-tab" data-tab="hot">热门</button>
+                            <button class="market-tab" data-tab="rank">排行</button>
                         </div>
-                        <div class="history-item">
-                            <div class="history-icon sell">卖出</div>
-                            <div class="history-info">
-                                <span class="history-name">广发中证500指数</span>
-                                <span class="history-date">2026-01-28</span>
+                    </div>
+                    <div class="market-content">
+                        <div class="market-list" id="marketList">
+                            <!-- 行情列表将由JS动态生成 -->
+                            <div class="market-item">
+                                <div class="market-fund-info">
+                                    <span class="market-fund-name">银河创新成长混合C</span>
+                                    <span class="market-fund-code">014143</span>
+                                </div>
+                                <div class="market-fund-data">
+                                    <span class="market-nav">1.2345</span>
+                                    <span class="market-change up">+2.35%</span>
+                                </div>
                             </div>
-                            <span class="history-amount">-500.00</span>
-                        </div>
-                        <div class="history-item">
-                            <div class="history-icon dividend">分红</div>
-                            <div class="history-info">
-                                <span class="history-name">易方达蓝筹精选</span>
-                                <span class="history-date">2026-01-15</span>
+                            <div class="market-item">
+                                <div class="market-fund-info">
+                                    <span class="market-fund-name">广发中证500指数</span>
+                                    <span class="market-fund-code">162711</span>
+                                </div>
+                                <div class="market-fund-data">
+                                    <span class="market-nav">1.4567</span>
+                                    <span class="market-change down">-0.87%</span>
+                                </div>
                             </div>
-                            <span class="history-amount positive">+128.50</span>
+                            <div class="market-item">
+                                <div class="market-fund-info">
+                                    <span class="market-fund-name">易方达蓝筹精选</span>
+                                    <span class="market-fund-code">009803</span>
+                                </div>
+                                <div class="market-fund-data">
+                                    <span class="market-nav">2.4152</span>
+                                    <span class="market-change up">+1.12%</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
