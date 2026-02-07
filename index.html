@@ -11,404 +11,300 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
-    <div class="dashboard">
-        <!-- 顶部概览栏 -->
-        <header class="top-overview">
-            <div class="overview-container">
-                <div class="brand">
-                    <div class="logo">
-                        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect width="40" height="40" rx="10" fill="url(#logoGradient)"/>
-                            <path d="M10 28L16 20L20 24L30 12" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <circle cx="30" cy="12" r="2.5" fill="white"/>
-                            <defs>
-                                <linearGradient id="logoGradient" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-                                    <stop stop-color="#667EEA"/>
-                                    <stop offset="1" stop-color="#764BA2"/>
-                                </linearGradient>
-                            </defs>
-                        </svg>
-                    </div>
-                    <h1>种基宝</h1>
+    <div class="app-container">
+        <!-- 顶部导航栏 -->
+        <header class="top-bar">
+            <div class="brand">
+                <div class="logo">
+                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="40" height="40" rx="10" fill="url(#logoGradient)"/>
+                        <path d="M10 28L16 20L20 24L30 12" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="30" cy="12" r="2.5" fill="white"/>
+                        <defs>
+                            <linearGradient id="logoGradient" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#667EEA"/>
+                                <stop offset="1" stop-color="#764BA2"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
                 </div>
-                <div class="overview-stats" role="region" aria-label="资产概览">
-                    <div class="stat-item">
-                        <span class="stat-label">总资产</span>
-                        <span class="stat-value" id="totalAsset" aria-live="polite">¥ 12,761.28</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">当日收益</span>
-                        <span class="stat-value negative" id="todayProfit" aria-live="polite">-355.78</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">持有收益</span>
-                        <span class="stat-value negative" id="holdProfit" aria-live="polite">-1,238.72</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">累计收益率</span>
-                        <span class="stat-value negative" id="totalRate" aria-live="polite">-8.84%</span>
-                    </div>
-                </div>
-                <div class="user-actions" role="group" aria-label="用户操作">
-                    <button class="icon-btn" title="添加基金" onclick="showAddModal()" aria-label="添加基金">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/>
-                            <line x1="12" y1="8" x2="12" y2="16"/>
-                            <line x1="8" y1="12" x2="16" y2="12"/>
-                        </svg>
-                    </button>
-                    <button class="icon-btn" id="themeToggle" title="切换深色模式" onclick="toggleDarkMode()" aria-label="切换深色模式">
-                        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                        </svg>
-                        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
-                            <circle cx="12" cy="12" r="5"/>
-                            <line x1="12" y1="1" x2="12" y2="3"/>
-                            <line x1="12" y1="21" x2="12" y2="23"/>
-                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                            <line x1="1" y1="12" x2="3" y2="12"/>
-                            <line x1="21" y1="12" x2="23" y2="12"/>
-                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                        </svg>
-                    </button>
-                    <div class="user-avatar">
-                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=zhongji" alt="用户头像">
-                    </div>
-                </div>
+                <h1>种基宝</h1>
+            </div>
+            <div class="top-actions">
+                <button class="icon-btn" title="添加基金" onclick="showAddModal()" aria-label="添加基金">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <line x1="12" y1="8" x2="12" y2="16"/>
+                        <line x1="8" y1="12" x2="16" y2="12"/>
+                    </svg>
+                </button>
+                <button class="icon-btn" id="themeToggle" title="切换深色模式" onclick="toggleDarkMode()" aria-label="切换深色模式">
+                    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                </button>
             </div>
         </header>
 
-        <!-- 主体内容区 -->
-        <main class="main-content">
-            <!-- 左侧基金列表 -->
+        <!-- 资产概览卡片 -->
+        <section class="stats-bar">
+            <div class="stat-card total">
+                <span class="stat-label">总资产</span>
+                <span class="stat-value" id="totalAsset">¥ --</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">今日收益</span>
+                <span class="stat-value" id="todayProfit">--</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">持有收益</span>
+                <span class="stat-value" id="holdProfit">--</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">累计收益率</span>
+                <span class="stat-value" id="totalRate">--</span>
+            </div>
+        </section>
+
+        <!-- 主体布局 -->
+        <main class="main-layout">
+            <!-- 左侧：基金列表 -->
             <aside class="sidebar">
-                <div class="sidebar-glass">
-                    <div class="sidebar-header">
-                        <h2>我的持仓</h2>
-                        <span class="fund-count" id="fundCount">7 只基金</span>
-                    </div>
+                <div class="panel-header">
+                    <h2>我的持仓</h2>
+                    <span class="badge" id="fundCount">0 只</span>
+                </div>
+                <div class="fund-list-container">
                     <div class="fund-list" id="fundList">
-                        <!-- 基金列表项将由JS动态生成 -->
+                        <!-- 基金列表由JS生成 -->
                     </div>
                 </div>
             </aside>
 
-            <!-- 右侧资产详情 -->
-            <section class="detail-panel">
-                <!-- 市场指数卡片 -->
-                <div class="index-section">
-                    <h3 class="section-title">市场指数</h3>
-                    <div class="index-cards">
-                        <div class="index-card down">
-                            <span class="index-name">上证指数</span>
-                            <span class="index-value">4066.60</span>
-                            <div class="index-change">
-                                <span>-35.60</span>
-                                <span>-0.87%</span>
-                            </div>
-                        </div>
-                        <div class="index-card down">
-                            <span class="index-name">深证成指</span>
-                            <span class="index-value">13933.81</span>
-                            <div class="index-change">
-                                <span>-222.46</span>
-                                <span>-1.57%</span>
-                            </div>
-                        </div>
-                        <div class="index-card down">
-                            <span class="index-name">创业板指</span>
-                            <span class="index-value">3256.11</span>
-                            <div class="index-change">
-                                <span>-55.40</span>
-                                <span>-1.67%</span>
-                            </div>
-                        </div>
-                        <div class="index-card down">
-                            <span class="index-name">沪深300</span>
-                            <span class="index-value">4658.51</span>
-                            <div class="index-change">
-                                <span>-40.17</span>
-                                <span>-0.86%</span>
-                            </div>
-                        </div>
+            <!-- 右侧：主要内容 -->
+            <section class="content-area">
+                <!-- 市场指数 -->
+                <div class="indices-bar">
+                    <div class="index-item">
+                        <span class="index-name">上证指数</span>
+                        <span class="index-value" id="shIndex">--</span>
+                    </div>
+                    <div class="index-item">
+                        <span class="index-name">深证成指</span>
+                        <span class="index-value" id="szIndex">--</span>
+                    </div>
+                    <div class="index-item">
+                        <span class="index-name">创业板指</span>
+                        <span class="index-value" id="cyIndex">--</span>
+                    </div>
+                    <div class="index-item">
+                        <span class="index-name">沪深300</span>
+                        <span class="index-value" id="hs300Index">--</span>
                     </div>
                 </div>
 
-                <!-- 中间区域：Grid 布局 -->
-                <div class="middle-grid">
-                    <!-- 收益走势 -->
-                    <div class="chart-section">
-                        <div class="chart-header">
-                            <h3 class="section-title" id="chartTitle">收益走势</h3>
-                            <div class="chart-period-tabs" id="chartTabs" role="tablist" aria-label="时间周期">
-                                <button class="period-tab active" data-period="day" onclick="switchChartPeriod('day')" role="tab" aria-selected="true">日</button>
-                                <button class="period-tab" data-period="month" onclick="switchChartPeriod('month')" role="tab" aria-selected="false">月</button>
-                                <button class="period-tab" data-period="year" onclick="switchChartPeriod('year')" role="tab" aria-selected="false">年</button>
-                                <button class="period-tab" data-period="all" onclick="switchChartPeriod('all')" role="tab" aria-selected="false">全部</button>
+                <!-- 主要内容区 -->
+                <div class="main-content-grid">
+                    <!-- 左侧：图表 -->
+                    <div class="chart-panel">
+                        <div class="panel-header">
+                            <h3 id="chartTitle">收益走势</h3>
+                            <div class="period-tabs">
+                                <button class="tab-btn active" data-period="day" onclick="switchChartPeriod('day')">日</button>
+                                <button class="tab-btn" data-period="month" onclick="switchChartPeriod('month')">月</button>
+                                <button class="tab-btn" data-period="year" onclick="switchChartPeriod('year')">年</button>
+                                <button class="tab-btn" data-period="all" onclick="switchChartPeriod('all')">全部</button>
                             </div>
                         </div>
-                        <div class="chart-container" id="chartContainer">
+                        <div class="chart-wrapper">
                             <div id="fundChart" style="width: 100%; height: 100%;"></div>
                         </div>
                     </div>
 
-                    <!-- 7x24小时财经快讯 -->
-                    <div class="news-section">
-                        <h3 class="section-title">
-                            7x24小时财经快讯
-                            <span class="live-badge" id="newsLiveBadge">LIVE</span>
-                            <button class="news-refresh-btn" id="newsRefreshBtn" onclick="fetchNews()" title="刷新新闻">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="23 4 23 10 17 10"></polyline>
-                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                                </svg>
-                            </button>
-                        </h3>
-                        <div class="news-list" id="newsList">
-                            <!-- 新闻列表由 JS 生成 -->
+                    <!-- 右侧：新闻 -->
+                    <div class="news-panel">
+                        <div class="panel-header">
+                            <h3>财经快讯</h3>
+                            <span class="live-badge">LIVE</span>
+                        </div>
+                        <div class="news-list-container">
+                            <div class="news-list" id="newsList">
+                                <!-- 新闻由JS生成 -->
+                            </div>
                         </div>
                     </div>
-                </div>
-
-
                 </div>
 
                 <!-- 行情模块 -->
-                <div class="market-section">
-                    <div class="market-header">
-                        <h3 class="section-title">行情</h3>
+                <div class="market-panel">
+                    <div class="panel-header">
+                        <h3>行情</h3>
                         <div class="market-tabs">
-                            <button class="market-tab active" data-tab="self">自选</button>
-                            <button class="market-tab" data-tab="hot">热门</button>
-                            <button class="market-tab" data-tab="rank">排行</button>
+                            <button class="tab-btn active" data-tab="self" onclick="switchMarketTab('self')">自选</button>
+                            <button class="tab-btn" data-tab="hot" onclick="switchMarketTab('hot')">热门</button>
+                            <button class="tab-btn" data-tab="rank" onclick="switchMarketTab('rank')">排行</button>
                         </div>
                     </div>
-                    <div class="market-content">
+                    <div class="market-list-container">
                         <div class="market-list" id="marketList">
-                            <!-- 行情列表将由JS动态生成 -->
-                            <div class="market-item">
-                                <div class="market-fund-info">
-                                    <span class="market-fund-name">银河创新成长混合C</span>
-                                    <span class="market-fund-code">014143</span>
-                                </div>
-                                <div class="market-fund-data">
-                                    <span class="market-nav">1.2345</span>
-                                    <span class="market-change up">+2.35%</span>
-                                </div>
-                            </div>
-                            <div class="market-item">
-                                <div class="market-fund-info">
-                                    <span class="market-fund-name">广发中证500指数</span>
-                                    <span class="market-fund-code">162711</span>
-                                </div>
-                                <div class="market-fund-data">
-                                    <span class="market-nav">1.4567</span>
-                                    <span class="market-change down">-0.87%</span>
-                                </div>
-                            </div>
-                            <div class="market-item">
-                                <div class="market-fund-info">
-                                    <span class="market-fund-name">易方达蓝筹精选</span>
-                                    <span class="market-fund-code">009803</span>
-                                </div>
-                                <div class="market-fund-data">
-                                    <span class="market-nav">2.4152</span>
-                                    <span class="market-change up">+1.12%</span>
-                                </div>
-                            </div>
+                            <!-- 行情由JS生成 -->
                         </div>
                     </div>
                 </div>
             </section>
         </main>
-    </div>
 
-    <!-- 添加基金弹窗 -->
-    <div class="modal" id="addModal" role="dialog" aria-modal="true" aria-labelledby="addModalTitle">
-        <div class="modal-overlay" onclick="hideAddModal()"></div>
-        <div class="modal-content">
-            <h3 id="addModalTitle">添加基金</h3>
-            <input type="text" id="fundCode" placeholder="基金代码" maxlength="6" aria-label="基金代码">
-            <input type="number" id="fundAmount" placeholder="持仓金额 (元)" step="0.01" aria-label="持仓金额" oninput="calculateAddPreview()">
-            <input type="number" id="fundCost" placeholder="成本单价" step="0.0001" aria-label="成本单价" oninput="calculateAddPreview()">
-            <input type="number" id="fundShares" placeholder="持有份额 (自动计算)" step="0.01" aria-label="持有份额" readonly style="background: var(--bg-color); cursor: not-allowed;">
-            <div class="add-preview" id="addPreview" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-color); border-radius: 8px; font-size: 13px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                    <span style="color: var(--text-secondary);">预计份额</span>
-                    <span id="previewAddShares" style="font-weight: 600;">--</span>
+        <!-- 添加基金弹窗 -->
+        <div class="modal" id="addModal" role="dialog" aria-modal="true" aria-labelledby="addModalTitle">
+            <div class="modal-overlay" onclick="hideAddModal()"></div>
+            <div class="modal-content">
+                <h3 id="addModalTitle">添加基金</h3>
+                <input type="text" id="fundCode" placeholder="基金代码" maxlength="6" aria-label="基金代码">
+                <input type="number" id="fundAmount" placeholder="持仓金额 (元)" step="0.01" aria-label="持仓金额" oninput="calculateAddPreview()">
+                <input type="number" id="fundCost" placeholder="成本单价" step="0.0001" aria-label="成本单价" oninput="calculateAddPreview()">
+                <input type="number" id="fundShares" placeholder="持有份额 (自动计算)" step="0.01" aria-label="持有份额" readonly style="background: var(--bg-color); cursor: not-allowed;">
+                <div class="add-preview" id="addPreview" style="display: none;">
+                    <div class="preview-row">
+                        <span class="preview-label">预计份额</span>
+                        <span class="preview-value" id="previewAddShares">--</span>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="hideAddModal()">取消</button>
+                    <button class="btn-primary" onclick="addFund()">确定</button>
                 </div>
             </div>
-            <div class="modal-actions">
-                <button class="btn-secondary" onclick="hideAddModal()">取消</button>
-                <button class="btn-primary" onclick="addFund()">确定</button>
-            </div>
         </div>
-    </div>
 
-    <!-- 一键导入弹窗 -->
-    <div class="modal" id="importModal" role="dialog" aria-modal="true" aria-labelledby="importModalTitle">
-        <div class="modal-overlay" onclick="hideImportModal()"></div>
-        <div class="modal-content" style="max-width: 520px;">
-            <h3 id="importModalTitle">一键导入持仓</h3>
-            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
-                支持从天天基金、蚂蚁财富等平台复制的持仓数据。格式示例：<br>
-                <code style="background: var(--bg-color); padding: 2px 6px; border-radius: 4px;">014143 银河创新成长混合C 1000.00 1.2345</code>
-            </p>
-            <textarea id="importData" placeholder="请粘贴基金持仓数据，每行一个基金&#10;格式：基金代码 基金名称 份额 成本价&#10;例如：&#10;014143 银河创新成长混合C 1000.00 1.2345&#10;162711 广发中证500指数 686.00 1.4567"
-                style="width: 100%; height: 180px; padding: 14px 16px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 12px; font-size: 14px; font-family: inherit; resize: none;"
-                aria-label="导入数据"></textarea>
-            <div class="import-preview" id="importPreview" style="display: none; margin-bottom: 16px; padding: 12px; background: var(--bg-color); border-radius: 8px; font-size: 13px; max-height: 120px; overflow-y: auto;">
-                <div style="color: var(--text-secondary); margin-bottom: 8px;">识别结果：</div>
-                <div id="importResult"></div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn-secondary" onclick="hideImportModal()">取消</button>
-                <button class="btn-secondary" onclick="parseImportData()" style="background: var(--accent); color: #fff;">解析数据</button>
-                <button class="btn-primary" onclick="confirmImport()">确认导入</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- iOS 风格编辑弹窗 - 优化版 -->
-    <div class="ios-modal" id="editModal">
-        <div class="ios-modal-overlay" onclick="hideEditModal()"></div>
-        <div class="ios-modal-content">
-            <div class="ios-modal-header">
-                <div class="fund-info-header">
+        <!-- 编辑弹窗 -->
+        <div class="ios-modal" id="editModal">
+            <div class="ios-modal-overlay" onclick="hideEditModal()"></div>
+            <div class="ios-modal-content">
+                <div class="ios-modal-header">
                     <h3 id="editFundName">基金名称</h3>
                     <span class="ios-fund-code" id="editFundCode">000000</span>
                 </div>
-                <div class="fund-nav-info">
-                    <span class="nav-label">最新净值</span>
-                    <span class="nav-value" id="editFundNav">--</span>
-                    <span class="nav-change" id="editFundChange">--</span>
-                </div>
-            </div>
-            
-            <div class="ios-modal-body">
-                <!-- 加减仓操作区 -->
-                <div class="trade-section">
-                    <div class="trade-tabs">
-                        <button class="trade-tab active" data-type="buy" onclick="switchTradeType('buy')">同步加仓</button>
-                        <button class="trade-tab" data-type="sell" onclick="switchTradeType('sell')">同步减仓</button>
-                    </div>
-                    
-                    <div class="trade-notice">
-                        <span class="notice-icon">ℹ️</span>
-                        <span class="notice-text">此操作仅为模拟记录，并非真实交易</span>
-                    </div>
-                    
-                    <div class="trade-content" id="tradeContent">
-                        <!-- 加仓模式 -->
-                        <div id="buySection">
-                            <div class="ios-input-group">
-                                <label class="input-label">同步加仓金额</label>
-                                <div class="amount-input-wrapper">
-                                    <span class="currency-symbol">¥</span>
-                                    <input type="number" id="tradeAmount" step="0.01" placeholder="请输入加仓金额" oninput="calculateTradePreview()">
-                                </div>
-                            </div>
-                            <div class="fee-info">
-                                <span class="fee-label">估算手续费</span>
-                                <span class="fee-value" id="previewFee">0.00元</span>
-                                <span class="fee-rate">(买入费率 0.000%)</span>
-                            </div>
+                <div class="ios-modal-body">
+                    <div class="trade-section">
+                        <div class="trade-tabs">
+                            <button class="trade-tab active" data-type="buy" onclick="switchTradeType('buy')">加仓</button>
+                            <button class="trade-tab" data-type="sell" onclick="switchTradeType('sell')">减仓</button>
                         </div>
                         
-                        <!-- 减仓模式 -->
-                        <div id="sellSection" style="display: none;">
-                            <div class="ios-input-group">
-                                <label class="input-label">同步卖出份额</label>
-                                <div class="shares-input-wrapper">
-                                    <input type="number" id="sellShares" step="0.01" placeholder="请输入卖出份额" oninput="calculateSellPreview()">
-                                    <span class="shares-unit">份</span>
-                                </div>
-                                <div class="max-shares-hint">最多可卖出 <span id="maxShares">--</span> 份</div>
-                            </div>
-                            
-                            <div class="quick-shares-buttons">
-                                <button class="quick-share-btn" onclick="setSellShares(0.25)">1/4</button>
-                                <button class="quick-share-btn" onclick="setSellShares(0.333)">1/3</button>
-                                <button class="quick-share-btn" onclick="setSellShares(0.5)">1/2</button>
-                                <button class="quick-share-btn all" onclick="setSellShares(1)">全部</button>
-                            </div>
-                            
-                            <div class="fee-info">
-                                <span class="fee-label">估算手续费</span>
-                                <span class="fee-value" id="previewSellFee">0.00元</span>
-                                <span class="fee-rate">(卖出费率 0.000%)</span>
-                            </div>
+                        <div class="trade-notice">
+                            <span class="notice-icon">ℹ️</span>
+                            <span class="notice-text">此操作仅为模拟记录，并非真实交易</span>
                         </div>
                         
-                        <div class="trade-preview" id="tradePreview" style="display: none;">
-                            <div class="preview-divider"></div>
-                            <div class="preview-row">
-                                <span class="preview-label" id="previewLabel1">预计获得份额</span>
-                                <span class="preview-value" id="previewTradeShares">--</span>
+                        <div class="trade-content" id="tradeContent">
+                            <div id="buySection">
+                                <div class="ios-input-group">
+                                    <label>加仓金额</label>
+                                    <div class="amount-input-wrapper">
+                                        <span class="currency-symbol">¥</span>
+                                        <input type="number" id="tradeAmount" step="0.01" placeholder="请输入金额" oninput="calculateTradePreview()">
+                                    </div>
+                                </div>
+                                <div class="fee-info">
+                                    <span class="fee-label">估算手续费</span>
+                                    <span class="fee-value" id="previewFee">0.00元</span>
+                                </div>
                             </div>
-                            <div class="preview-row">
-                                <span class="preview-label">持仓成本变化</span>
-                                <span class="preview-value" id="previewCostChange">--</span>
+                            
+                            <div id="sellSection" style="display: none;">
+                                <div class="ios-input-group">
+                                    <label>卖出份额</label>
+                                    <div class="shares-input-wrapper">
+                                        <input type="number" id="sellShares" step="0.01" placeholder="请输入份额" oninput="calculateSellPreview()">
+                                        <span class="shares-unit">份</span>
+                                    </div>
+                                    <div class="max-shares-hint">最多可卖 <span id="maxShares">--</span> 份</div>
+                                </div>
+                                
+                                <div class="quick-shares-buttons">
+                                    <button class="quick-share-btn" onclick="setSellShares(0.25)">1/4</button>
+                                    <button class="quick-share-btn" onclick="setSellShares(0.333)">1/3</button>
+                                    <button class="quick-share-btn" onclick="setSellShares(0.5)">1/2</button>
+                                    <button class="quick-share-btn all" onclick="setSellShares(1)">全部</button>
+                                </div>
+                            </div>
+                            
+                            <div class="trade-preview" id="tradePreview" style="display: none;">
+                                <div class="preview-row">
+                                    <span class="preview-label" id="previewLabel1">预计份额</span>
+                                    <span class="preview-value" id="previewTradeShares">--</span>
+                                </div>
+                                <div class="preview-row">
+                                    <span class="preview-label">持仓成本变化</span>
+                                    <span class="preview-value" id="previewCostChange">--</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- 当前持仓信息 -->
-                <div class="current-holding-section">
-                    <div class="section-title-small">当前持仓</div>
-                    <div class="holding-grid">
-                        <div class="holding-item">
-                            <span class="holding-label">持有金额</span>
-                            <span class="holding-value" id="currentAmount">--</span>
-                        </div>
-                        <div class="holding-item">
-                            <span class="holding-label">持有收益</span>
-                            <span class="holding-value" id="currentProfit">--</span>
-                        </div>
-                        <div class="holding-item">
-                            <span class="holding-label">持有份额</span>
-                            <span class="holding-value" id="currentShares">--</span>
-                        </div>
-                        <div class="holding-item">
-                            <span class="holding-label">成本单价</span>
-                            <span class="holding-value" id="currentCost">--</span>
+                    <div class="current-holding-section">
+                        <div class="section-title-small">当前持仓</div>
+                        <div class="holding-grid">
+                            <div class="holding-item">
+                                <span class="holding-label">持有金额</span>
+                                <span class="holding-value" id="currentAmount">--</span>
+                            </div>
+                            <div class="holding-item">
+                                <span class="holding-label">持有收益</span>
+                                <span class="holding-value" id="currentProfit">--</span>
+                            </div>
+                            <div class="holding-item">
+                                <span class="holding-label">持有份额</span>
+                                <span class="holding-value" id="currentShares">--</span>
+                            </div>
+                            <div class="holding-item">
+                                <span class="holding-label">成本单价</span>
+                                <span class="holding-value" id="currentCost">--</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="ios-modal-actions">
-                <button class="ios-btn-cancel" onclick="hideEditModal()">取消</button>
-                <button class="ios-btn-delete" onclick="deleteCurrentFund()">删除持仓</button>
-                <button class="ios-btn-save" id="tradeConfirmBtn" onclick="confirmTrade()">确认加仓</button>
+                <div class="ios-modal-actions">
+                    <button class="ios-btn-cancel" onclick="hideEditModal()">取消</button>
+                    <button class="ios-btn-delete" onclick="deleteCurrentFund()">删除</button>
+                    <button class="ios-btn-save" id="tradeConfirmBtn" onclick="confirmTrade()">确认</button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- 数据延迟提示 -->
-    <div class="data-status" id="dataStatus">
-        <span class="status-dot"></span>
-        <span class="status-text" id="statusText">数据实时</span>
-    </div>
+        <!-- 新闻详情弹窗 -->
+        <div class="news-modal" id="newsModal">
+            <div class="news-modal-overlay" onclick="closeNewsModal()"></div>
+            <div class="news-modal-content">
+                <div class="news-modal-header">
+                    <span class="news-modal-time" id="newsModalTime">--:--</span>
+                    <span class="news-modal-tag" id="newsModalTag">快讯</span>
+                </div>
+                <div class="news-modal-body">
+                    <h4 id="newsModalTitle">新闻标题</h4>
+                    <p id="newsModalSummary">新闻摘要内容...</p>
+                </div>
+                <div class="news-modal-footer">
+                    <button class="news-modal-close" onclick="closeNewsModal()">关闭</button>
+                </div>
+            </div>
+        </div>
 
-    <!-- 新闻详情弹窗 -->
-    <div class="news-modal" id="newsModal">
-        <div class="news-modal-overlay" onclick="closeNewsModal()"></div>
-        <div class="news-modal-content">
-            <div class="news-modal-header">
-                <span class="news-modal-time" id="newsModalTime">--:--</span>
-                <span class="news-modal-tag" id="newsModalTag">快讯</span>
-            </div>
-            <div class="news-modal-body">
-                <h4 id="newsModalTitle">新闻标题</h4>
-                <p id="newsModalSummary">新闻摘要内容...</p>
-            </div>
-            <div class="news-modal-footer">
-                <button class="news-modal-close" onclick="closeNewsModal()">关闭</button>
-            </div>
+        <!-- 数据状态 -->
+        <div class="data-status" id="dataStatus">
+            <span class="status-dot"></span>
+            <span class="status-text" id="statusText">数据实时</span>
         </div>
     </div>
 
