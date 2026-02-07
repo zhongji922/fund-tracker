@@ -4,6 +4,30 @@
  */
 
 // ====================
+// Firebase 配置
+// ====================
+const firebaseConfig = {
+    apiKey: "AIzaSyCTNEotDxboQ61Yq5iwF_JEc_j-UnnMsCg",
+    authDomain: "fund-tracker-yourname.firebaseapp.com",
+    projectId: "fund-tracker-yourname",
+    storageBucket: "fund-tracker-yourname.firebasestorage.app",
+    messagingSenderId: "206001345776",
+    appId: "1:206001345776:web:fcf3ec5c0d76460b3f1e35"
+};
+
+// 初始化 Firebase
+let db = null;
+let currentUserId = null;
+
+if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    console.log('✅ Firebase 初始化成功');
+} else {
+    console.log('⚠️ Firebase SDK 未加载');
+}
+
+// ====================
 // 常量定义
 // ====================
 const STORAGE_KEY = 'fund_portfolio_v3';
@@ -401,25 +425,84 @@ function getTradeTime(index, totalPoints = 49) {
 }
 
 // 初始化加载
-function initStorage() {
+async function initStorage() {
+    // 生成或获取用户ID
+    currentUserId = localStorage.getItem('fund_tracker_user_id');
+    if (!currentUserId) {
+        currentUserId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        localStorage.setItem('fund_tracker_user_id', currentUserId);
+    }
+
+    // 优先从 Firebase 加载
+    if (db) {
+        try {
+            const doc = await db.collection('portfolios').doc(currentUserId).get();
+            if (doc.exists) {
+                const data = doc.data();
+                if (data.funds && Array.isArray(data.funds)) {
+                    portfolio.funds = data.funds;
+                    console.log('✅ 从 Firebase 加载持仓:', portfolio.funds.length, '只基金');
+                    return;
+                }
+            }
+            console.log('ℹ️ Firebase 无数据，尝试本地存储');
+        } catch (e) {
+            console.error('❌ 从 Firebase 加载失败:', e);
+        }
+    }
+
+    // 回退到本地存储
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
         try {
             const parsed = JSON.parse(saved);
             portfolio.funds = parsed.funds || [];
             console.log('✅ 从本地存储加载持仓:', portfolio.funds.length, '只基金');
+            // 如果本地有数据且 Firebase 可用，同步到 Firebase
+            if (db && portfolio.funds.length > 0) {
+                await saveToFirebase();
+            }
         } catch (e) {
             console.error('Storage parse error:', e);
             portfolio.funds = [];
         }
     }
-    // 如果没有数据，显示空状态（不添加默认持仓）
+
+    // 如果没有数据，显示空状态
     if (portfolio.funds.length === 0) {
         console.log('ℹ️ 无持仓数据，显示空状态');
     }
 }
 
-function saveStorage() {
+// 保存到 Firebase
+async function saveToFirebase() {
+    if (!db || !currentUserId) return;
+    
+    try {
+        await db.collection('portfolios').doc(currentUserId).set({
+            funds: portfolio.funds,
+            lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
+            userId: currentUserId
+        });
+        console.log('✅ 持仓已保存到 Firebase');
+    } catch (e) {
+        console.error('❌ 保存到 Firebase 失败:', e);
+        throw e;
+    }
+}
+
+async function saveStorage() {
+    // 保存到 Firebase（如果已配置）
+    if (db && currentUserId) {
+        try {
+            await saveToFirebase();
+        } catch (e) {
+            console.error('❌ Firebase 保存失败:', e);
+            showToast('云端同步失败，已保存到本地');
+        }
+    }
+
+    // 同时保存到本地存储（作为备份）
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
             funds: portfolio.funds,
@@ -429,7 +512,7 @@ function saveStorage() {
     } catch (e) {
         console.error('保存到本地存储失败:', e);
         if (e.name === 'QuotaExceededError') {
-            showToast('存储空间不足，建议导出数据备份');
+            showToast('存储空间不足');
         }
     }
 }
@@ -498,7 +581,7 @@ function importPortfolioFromFile(file) {
                     });
                 }
                 
-                saveStorage();
+                await saveStorage();
                 updateUI();
                 showToast(`成功导入 ${validFunds.length} 只基金`);
             } else {
@@ -1626,7 +1709,7 @@ function hideEditModal() {
     editingFundCode = null;
 }
 
-function saveFundEdit() {
+async function saveFundEdit() {
     if (!editingFundCode) return;
 
     const shares = parseFloat(document.getElementById('editShares').value);
@@ -1641,20 +1724,20 @@ function saveFundEdit() {
     if (fund) {
         fund.shares = shares;
         fund.costPrice = costPrice;
-        saveStorage();
+        await saveStorage();
         updateUI();
     }
 
     hideEditModal();
 }
 
-function deleteCurrentFund() {
+async function deleteCurrentFund() {
     if (!editingFundCode) return;
 
     if (confirm('确定删除该基金？')) {
         portfolio.funds = portfolio.funds.filter(f => f.code !== editingFundCode);
         delete portfolio.dataCache[editingFundCode];
-        saveStorage();
+        await saveStorage();
         updateUI();
         hideEditModal();
     }
@@ -1756,7 +1839,7 @@ function calculateTradePreview() {
     }
 }
 
-function confirmTrade() {
+async function confirmTrade() {
     if (!editingFundCode) return;
 
     const fund = portfolio.funds.find(f => f.code === editingFundCode);
@@ -1804,7 +1887,7 @@ function confirmTrade() {
         fund.costPrice = price;
     }
 
-    saveStorage();
+    await saveStorage();
     updateUI();
     hideEditModal();
 }
@@ -1895,7 +1978,7 @@ async function addFund() {
     // 添加到持仓
     portfolio.funds.push({ code, shares: finalShares, costPrice });
     portfolio.dataCache[code] = fundData;
-    saveStorage();
+    await saveStorage();
 
     hideAddModal();
     updateUI();
@@ -2045,7 +2128,7 @@ async function confirmImport() {
         }
     }
 
-    saveStorage();
+    await saveStorage();
     updateUI();
     hideImportModal();
 
