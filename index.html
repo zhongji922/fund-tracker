@@ -326,37 +326,84 @@
         </div>
     </div>
 
-    <!-- iOS 风格编辑弹窗 -->
+    <!-- iOS 风格编辑弹窗 - 优化版 -->
     <div class="ios-modal" id="editModal">
         <div class="ios-modal-overlay" onclick="hideEditModal()"></div>
         <div class="ios-modal-content">
             <div class="ios-modal-header">
-                <h3 id="editFundName">基金名称</h3>
-                <span class="ios-fund-code" id="editFundCode">000000</span>
+                <div class="fund-info-header">
+                    <h3 id="editFundName">基金名称</h3>
+                    <span class="ios-fund-code" id="editFundCode">000000</span>
+                </div>
+                <div class="fund-nav-info">
+                    <span class="nav-label">最新净值</span>
+                    <span class="nav-value" id="editFundNav">--</span>
+                    <span class="nav-change" id="editFundChange">--</span>
+                </div>
             </div>
+            
             <div class="ios-modal-body">
                 <!-- 加减仓操作区 -->
                 <div class="trade-section">
                     <div class="trade-tabs">
-                        <button class="trade-tab active" data-type="buy" onclick="switchTradeType('buy')">加仓</button>
-                        <button class="trade-tab" data-type="sell" onclick="switchTradeType('sell')">减仓</button>
-                        <button class="trade-tab" data-type="edit" onclick="switchTradeType('edit')">修改</button>
+                        <button class="trade-tab active" data-type="buy" onclick="switchTradeType('buy')">同步加仓</button>
+                        <button class="trade-tab" data-type="sell" onclick="switchTradeType('sell')">同步减仓</button>
                     </div>
+                    
+                    <div class="trade-notice">
+                        <span class="notice-icon">ℹ️</span>
+                        <span class="notice-text">此操作仅为模拟记录，并非真实交易</span>
+                    </div>
+                    
                     <div class="trade-content" id="tradeContent">
-                        <div class="ios-input-group">
-                            <label id="tradeAmountLabel">买入金额 (元)</label>
-                            <input type="number" id="tradeAmount" step="0.01" placeholder="0.00" oninput="calculateTradePreview()">
+                        <!-- 加仓模式 -->
+                        <div id="buySection">
+                            <div class="ios-input-group">
+                                <label class="input-label">同步加仓金额</label>
+                                <div class="amount-input-wrapper">
+                                    <span class="currency-symbol">¥</span>
+                                    <input type="number" id="tradeAmount" step="0.01" placeholder="请输入加仓金额" oninput="calculateTradePreview()">
+                                </div>
+                            </div>
+                            <div class="fee-info">
+                                <span class="fee-label">估算手续费</span>
+                                <span class="fee-value" id="previewFee">0.00元</span>
+                                <span class="fee-rate">(买入费率 0.000%)</span>
+                            </div>
                         </div>
-                        <div class="ios-input-group" id="tradePriceGroup" style="display: none;">
-                            <label>成交单价</label>
-                            <input type="number" id="tradePrice" step="0.0001" placeholder="当前估值" oninput="calculateTradePreview()">
+                        
+                        <!-- 减仓模式 -->
+                        <div id="sellSection" style="display: none;">
+                            <div class="ios-input-group">
+                                <label class="input-label">同步卖出份额</label>
+                                <div class="shares-input-wrapper">
+                                    <input type="number" id="sellShares" step="0.01" placeholder="请输入卖出份额" oninput="calculateSellPreview()">
+                                    <span class="shares-unit">份</span>
+                                </div>
+                                <div class="max-shares-hint">最多可卖出 <span id="maxShares">--</span> 份</div>
+                            </div>
+                            
+                            <div class="quick-shares-buttons">
+                                <button class="quick-share-btn" onclick="setSellShares(0.25)">1/4</button>
+                                <button class="quick-share-btn" onclick="setSellShares(0.333)">1/3</button>
+                                <button class="quick-share-btn" onclick="setSellShares(0.5)">1/2</button>
+                                <button class="quick-share-btn all" onclick="setSellShares(1)">全部</button>
+                            </div>
+                            
+                            <div class="fee-info">
+                                <span class="fee-label">估算手续费</span>
+                                <span class="fee-value" id="previewSellFee">0.00元</span>
+                                <span class="fee-rate">(卖出费率 0.000%)</span>
+                            </div>
                         </div>
+                        
                         <div class="trade-preview" id="tradePreview" style="display: none;">
-                            <div class="preview-item">
-                                <span class="preview-label">预计份额</span>
+                            <div class="preview-divider"></div>
+                            <div class="preview-row">
+                                <span class="preview-label" id="previewLabel1">预计获得份额</span>
                                 <span class="preview-value" id="previewTradeShares">--</span>
                             </div>
-                            <div class="preview-item">
+                            <div class="preview-row">
                                 <span class="preview-label">持仓成本变化</span>
                                 <span class="preview-value" id="previewCostChange">--</span>
                             </div>
@@ -367,30 +414,31 @@
                 <!-- 当前持仓信息 -->
                 <div class="current-holding-section">
                     <div class="section-title-small">当前持仓</div>
-                    <div class="ios-data-preview">
-                        <div class="preview-item">
-                            <span class="preview-label">持有份额</span>
-                            <span class="preview-value" id="currentShares">--</span>
+                    <div class="holding-grid">
+                        <div class="holding-item">
+                            <span class="holding-label">持有金额</span>
+                            <span class="holding-value" id="currentAmount">--</span>
                         </div>
-                        <div class="preview-item">
-                            <span class="preview-label">成本单价</span>
-                            <span class="preview-value" id="currentCost">--</span>
+                        <div class="holding-item">
+                            <span class="holding-label">持有收益</span>
+                            <span class="holding-value" id="currentProfit">--</span>
                         </div>
-                        <div class="preview-item">
-                            <span class="preview-label">当前估值</span>
-                            <span class="preview-value" id="previewNav">--</span>
+                        <div class="holding-item">
+                            <span class="holding-label">持有份额</span>
+                            <span class="holding-value" id="currentShares">--</span>
                         </div>
-                        <div class="preview-item">
-                            <span class="preview-label">今日涨跌</span>
-                            <span class="preview-value" id="previewChange">--</span>
+                        <div class="holding-item">
+                            <span class="holding-label">成本单价</span>
+                            <span class="holding-value" id="currentCost">--</span>
                         </div>
                     </div>
                 </div>
             </div>
+            
             <div class="ios-modal-actions">
                 <button class="ios-btn-cancel" onclick="hideEditModal()">取消</button>
-                <button class="ios-btn-delete" onclick="deleteCurrentFund()">删除</button>
-                <button class="ios-btn-save" id="tradeConfirmBtn" onclick="confirmTrade()">确认买入</button>
+                <button class="ios-btn-delete" onclick="deleteCurrentFund()">删除持仓</button>
+                <button class="ios-btn-save" id="tradeConfirmBtn" onclick="confirmTrade()">确认加仓</button>
             </div>
         </div>
     </div>

@@ -1632,6 +1632,250 @@ body {
     margin-bottom: 0;
 }
 
+/* ====================
+   交易弹窗优化样式
+   ==================== */
+
+/* 弹窗头部基金信息 */
+.fund-info-header {
+    margin-bottom: 8px;
+}
+
+.fund-nav-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.fund-nav-info .nav-label {
+    color: var(--text-secondary);
+}
+
+.fund-nav-info .nav-value {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: 'Fira Code', monospace;
+}
+
+.fund-nav-info .nav-change {
+    font-weight: 600;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.fund-nav-info .nav-change.up {
+    color: var(--rise-color);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.fund-nav-info .nav-change.down {
+    color: var(--fall-color);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+/* 交易提示 */
+.trade-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(234, 179, 8, 0.1);
+    border: 1px solid rgba(234, 179, 8, 0.2);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 12px;
+}
+
+.trade-notice .notice-icon {
+    font-size: 14px;
+}
+
+.trade-notice .notice-text {
+    color: #a16207;
+}
+
+/* 输入框标签 */
+.input-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+/* 金额输入框（带¥符号） */
+.amount-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.amount-input-wrapper .currency-symbol {
+    position: absolute;
+    left: 16px;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: 'Fira Code', monospace;
+}
+
+.amount-input-wrapper input {
+    padding-left: 40px !important;
+    font-size: 18px !important;
+    font-weight: 600;
+}
+
+/* 份额输入框 */
+.shares-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.shares-input-wrapper input {
+    padding-right: 50px !important;
+}
+
+.shares-input-wrapper .shares-unit {
+    position: absolute;
+    right: 16px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.max-shares-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    padding-left: 4px;
+}
+
+.max-shares-hint span {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* 快捷份额按钮 */
+.quick-shares-buttons {
+    display: flex;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.quick-share-btn {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.quick-share-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(124, 58, 237, 0.05);
+}
+
+.quick-share-btn.all {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.quick-share-btn.all:hover {
+    background: var(--accent);
+    color: white;
+}
+
+/* 费用信息 */
+.fee-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.fee-info .fee-label {
+    color: var(--text-secondary);
+}
+
+.fee-info .fee-value {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: 'Fira Code', monospace;
+}
+
+.fee-info .fee-rate {
+    color: var(--text-tertiary);
+    font-size: 11px;
+}
+
+/* 预览分隔线 */
+.preview-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 12px 0;
+}
+
+/* 预览行 */
+.preview-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.preview-row:last-child {
+    margin-bottom: 0;
+}
+
+/* 持仓网格 */
+.holding-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.holding-item {
+    background: rgba(0, 0, 0, 0.02);
+    padding: 12px;
+    border-radius: 10px;
+}
+
+.holding-item .holding-label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.holding-item .holding-value {
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: 'Fira Code', monospace;
+}
+
+.holding-item .holding-value.positive {
+    color: var(--rise-color);
+}
+
+.holding-item .holding-value.negative {
+    color: var(--fall-color);
+}
+
 .current-holding-section {
     background: var(--bg-color);
     border-radius: 16px;
@@ -3167,6 +3411,125 @@ input:focus-visible {
     background: rgba(15, 23, 42, 0.7) !important;
     border: 1px solid rgba(139, 92, 246, 0.25);
     border-radius: 12px;
+}
+
+/* 深色模式 - 交易弹窗优化 */
+[data-theme="dark"] .fund-nav-info .nav-value {
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .fund-nav-info .nav-change.up {
+    color: #f87171;
+    background: rgba(239, 68, 68, 0.15);
+}
+
+[data-theme="dark"] .fund-nav-info .nav-change.down {
+    color: #4ade80;
+    background: rgba(16, 185, 129, 0.15);
+}
+
+[data-theme="dark"] .trade-notice {
+    background: rgba(234, 179, 8, 0.08);
+    border-color: rgba(234, 179, 8, 0.25);
+}
+
+[data-theme="dark"] .trade-notice .notice-text {
+    color: #eab308;
+}
+
+[data-theme="dark"] .input-label {
+    color: #e2e8f0;
+}
+
+[data-theme="dark"] .amount-input-wrapper .currency-symbol {
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .shares-input-wrapper .shares-unit {
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .max-shares-hint {
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .max-shares-hint span {
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .quick-share-btn {
+    background: rgba(15, 23, 42, 0.6);
+    border-color: rgba(139, 92, 246, 0.25);
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .quick-share-btn:hover {
+    border-color: #a855f7;
+    color: #c084fc;
+    background: rgba(168, 85, 247, 0.15);
+}
+
+[data-theme="dark"] .quick-share-btn.all {
+    border-color: #a855f7;
+    color: #c084fc;
+    background: rgba(168, 85, 247, 0.1);
+}
+
+[data-theme="dark"] .quick-share-btn.all:hover {
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+}
+
+[data-theme="dark"] .fee-info {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+[data-theme="dark"] .fee-info .fee-label {
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .fee-info .fee-value {
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .fee-info .fee-rate {
+    color: #64748b;
+}
+
+[data-theme="dark"] .preview-divider {
+    background: rgba(139, 92, 246, 0.2);
+}
+
+[data-theme="dark"] .holding-grid {
+    background: transparent;
+}
+
+[data-theme="dark"] .holding-item {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+[data-theme="dark"] .holding-item:hover {
+    border-color: rgba(139, 92, 246, 0.3);
+    background: rgba(139, 92, 246, 0.08);
+}
+
+[data-theme="dark"] .holding-item .holding-label {
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .holding-item .holding-value {
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .holding-item .holding-value.positive {
+    color: #f87171;
+}
+
+[data-theme="dark"] .holding-item .holding-value.negative {
+    color: #4ade80;
 }
 
 /* iOS 编辑弹窗按钮 */

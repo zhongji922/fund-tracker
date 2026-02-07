@@ -1680,25 +1680,42 @@ function openEditModal(fundCode) {
 
     if (!fund) return;
 
-    document.getElementById('editFundCode').textContent = fund.code;
+    // 计算持有金额和收益
+    const currentNav = data?.estimate || fund.costPrice;
+    const currentAmount = fund.shares * currentNav;
+    const holdProfit = (currentNav - fund.costPrice) * fund.shares;
 
-    // 更新当前持仓信息
-    document.getElementById('currentShares').textContent = fund.shares.toFixed(2);
-    document.getElementById('currentCost').textContent = fund.costPrice.toFixed(4);
+    // 更新基金基本信息
+    document.getElementById('editFundCode').textContent = fund.code;
 
     if (data) {
         document.getElementById('editFundName').textContent = data.name;
-        document.getElementById('previewNav').textContent = data.estimate.toFixed(4);
+        document.getElementById('editFundNav').textContent = data.estimate.toFixed(4);
 
-        const changeEl = document.getElementById('previewChange');
+        const changeEl = document.getElementById('editFundChange');
         const changeText = data.changePercent >= 0 ? `+${data.changePercent}%` : `${data.changePercent}%`;
         changeEl.textContent = changeText;
-        changeEl.className = 'preview-value ' + (data.changePercent >= 0 ? 'up' : 'down');
+        changeEl.className = 'nav-change ' + (data.changePercent >= 0 ? 'up' : 'down');
     } else {
         document.getElementById('editFundName').textContent = '加载中...';
-        document.getElementById('previewNav').textContent = '--';
-        document.getElementById('previewChange').textContent = '--';
+        document.getElementById('editFundNav').textContent = '--';
+        document.getElementById('editFundChange').textContent = '--';
+        document.getElementById('editFundChange').className = 'nav-change';
     }
+
+    // 更新当前持仓信息（新的网格布局）
+    const currentAmountEl = document.getElementById('currentAmount');
+    const currentProfitEl = document.getElementById('currentProfit');
+    const currentSharesEl = document.getElementById('currentShares');
+    const currentCostEl = document.getElementById('currentCost');
+
+    if (currentAmountEl) currentAmountEl.textContent = `¥ ${currentAmount.toFixed(2)}`;
+    if (currentProfitEl) {
+        currentProfitEl.textContent = `${holdProfit >= 0 ? '+' : ''}${holdProfit.toFixed(2)}`;
+        currentProfitEl.className = 'holding-value ' + (holdProfit >= 0 ? 'positive' : 'negative');
+    }
+    if (currentSharesEl) currentSharesEl.textContent = fund.shares.toFixed(2);
+    if (currentCostEl) currentCostEl.textContent = fund.costPrice.toFixed(4);
 
     // 重置交易类型为买入
     switchTradeType('buy');
@@ -1760,85 +1777,118 @@ function switchTradeType(type) {
         }
     });
 
-    // 更新输入标签
-    const amountLabel = document.getElementById('tradeAmountLabel');
-    const tradePriceGroup = document.getElementById('tradePriceGroup');
+    const buySection = document.getElementById('buySection');
+    const sellSection = document.getElementById('sellSection');
     const confirmBtn = document.getElementById('tradeConfirmBtn');
+    const tradePreview = document.getElementById('tradePreview');
 
     if (type === 'buy') {
-        amountLabel.textContent = '买入金额 (元)';
-        tradePriceGroup.style.display = 'none';
-        confirmBtn.textContent = '确认买入';
+        buySection.style.display = 'block';
+        sellSection.style.display = 'none';
+        confirmBtn.textContent = '确认加仓';
         confirmBtn.className = 'ios-btn-save';
+        // 清空卖出输入
+        document.getElementById('sellShares').value = '';
     } else if (type === 'sell') {
-        amountLabel.textContent = '卖出份额';
-        tradePriceGroup.style.display = 'none';
-        confirmBtn.textContent = '确认卖出';
+        buySection.style.display = 'none';
+        sellSection.style.display = 'block';
+        confirmBtn.textContent = '确认减仓';
         confirmBtn.className = 'ios-btn-delete';
-    } else if (type === 'edit') {
-        amountLabel.textContent = '持有份额';
-        tradePriceGroup.style.display = 'block';
-        confirmBtn.textContent = '保存修改';
-        confirmBtn.className = 'ios-btn-save';
+        // 清空买入输入
+        document.getElementById('tradeAmount').value = '';
+        // 更新最大份额显示
+        updateMaxShares();
     }
 
-    // 清空输入
-    document.getElementById('tradeAmount').value = '';
-    document.getElementById('tradePrice').value = '';
-    document.getElementById('tradePreview').style.display = 'none';
+    tradePreview.style.display = 'none';
+}
+
+// 更新最大份额显示
+function updateMaxShares() {
+    const fund = portfolio.funds.find(f => f.code === editingFundCode);
+    if (fund) {
+        const maxSharesEl = document.getElementById('maxShares');
+        if (maxSharesEl) {
+            maxSharesEl.textContent = fund.shares.toFixed(2);
+        }
+    }
+}
+
+// 设置卖出份额（快捷按钮）
+function setSellShares(ratio) {
+    const fund = portfolio.funds.find(f => f.code === editingFundCode);
+    if (!fund) return;
+    
+    const shares = Math.floor(fund.shares * ratio * 100) / 100;
+    document.getElementById('sellShares').value = shares;
+    calculateSellPreview();
+}
+
+// 计算减仓预览
+function calculateSellPreview() {
+    const shares = parseFloat(document.getElementById('sellShares').value);
+    const fund = portfolio.funds.find(f => f.code === editingFundCode);
+    const data = portfolio.dataCache[editingFundCode];
+    
+    if (!fund || isNaN(shares) || shares <= 0) {
+        document.getElementById('tradePreview').style.display = 'none';
+        return;
+    }
+    
+    // 检查是否超过最大份额
+    if (shares > fund.shares) {
+        showToast('卖出份额不能超过持有份额');
+        document.getElementById('sellShares').value = fund.shares.toFixed(2);
+        return;
+    }
+    
+    const currentNav = data?.estimate || data?.nav || fund.costPrice;
+    const sellAmount = shares * currentNav;
+    const remainingShares = fund.shares - shares;
+    
+    // 更新预览
+    document.getElementById('previewLabel1').textContent = '预计卖出金额';
+    document.getElementById('previewTradeShares').textContent = `¥ ${sellAmount.toFixed(2)}`;
+    document.getElementById('previewCostChange').textContent = `剩余 ${remainingShares.toFixed(2)} 份`;
+    
+    // 显示预览
+    document.getElementById('tradePreview').style.display = 'block';
+    
+    // 更新费用估算（假设卖出费率0.5%）
+    const fee = sellAmount * 0.005;
+    document.getElementById('previewSellFee').textContent = `${fee.toFixed(2)}元`;
 }
 
 function calculateTradePreview() {
     const amount = parseFloat(document.getElementById('tradeAmount').value);
-    const price = parseFloat(document.getElementById('tradePrice').value);
     const fund = portfolio.funds.find(f => f.code === editingFundCode);
     const data = portfolio.dataCache[editingFundCode];
 
     if (!fund) return;
 
     const currentNav = data?.estimate || data?.nav || fund.costPrice;
-    const tradePrice = !isNaN(price) && price > 0 ? price : currentNav;
 
-    document.getElementById('tradePreview').style.display = 'block';
-
-    const sharesEl = document.getElementById('previewTradeShares');
-    const costChangeEl = document.getElementById('previewCostChange');
-
-    if (currentTradeType === 'buy') {
-        if (isNaN(amount) || amount <= 0 || tradePrice <= 0) {
-            sharesEl.textContent = '--';
-            costChangeEl.textContent = '--';
-            return;
-        }
-        const newShares = amount / tradePrice;
-        const totalShares = fund.shares + newShares;
-        const totalCost = (fund.shares * fund.costPrice) + amount;
-        const newCostPrice = totalCost / totalShares;
-
-        sharesEl.textContent = `+${newShares.toFixed(2)} 份`;
-        costChangeEl.textContent = `${fund.costPrice.toFixed(4)} → ${newCostPrice.toFixed(4)}`;
-    } else if (currentTradeType === 'sell') {
-        if (isNaN(amount) || amount <= 0) {
-            sharesEl.textContent = '--';
-            costChangeEl.textContent = '--';
-            return;
-        }
-        const sellShares = Math.min(amount, fund.shares);
-        const remainingShares = fund.shares - sellShares;
-
-        sharesEl.textContent = `-${sellShares.toFixed(2)} 份`;
-        costChangeEl.textContent = remainingShares > 0
-            ? `剩余 ${remainingShares.toFixed(2)} 份`
-            : '全部清仓';
-    } else if (currentTradeType === 'edit') {
-        if (isNaN(amount) || amount < 0 || isNaN(price) || price <= 0) {
-            sharesEl.textContent = '--';
-            costChangeEl.textContent = '--';
-            return;
-        }
-        sharesEl.textContent = `${amount.toFixed(2)} 份`;
-        costChangeEl.textContent = `${fund.costPrice.toFixed(4)} → ${price.toFixed(4)}`;
+    if (isNaN(amount) || amount <= 0) {
+        document.getElementById('tradePreview').style.display = 'none';
+        return;
     }
+
+    const newShares = amount / currentNav;
+    const totalShares = fund.shares + newShares;
+    const totalCost = (fund.shares * fund.costPrice) + amount;
+    const newCostPrice = totalCost / totalShares;
+
+    // 更新预览
+    document.getElementById('previewLabel1').textContent = '预计获得份额';
+    document.getElementById('previewTradeShares').textContent = `+${newShares.toFixed(2)} 份`;
+    document.getElementById('previewCostChange').textContent = `${fund.costPrice.toFixed(4)} → ${newCostPrice.toFixed(4)}`;
+    
+    // 显示预览
+    document.getElementById('tradePreview').style.display = 'block';
+    
+    // 更新费用估算（假设买入费率0.15%）
+    const fee = amount * 0.0015;
+    document.getElementById('previewFee').textContent = `${fee.toFixed(2)}元`;
 }
 
 async function confirmTrade() {
@@ -1847,46 +1897,53 @@ async function confirmTrade() {
     const fund = portfolio.funds.find(f => f.code === editingFundCode);
     if (!fund) return;
 
-    const amount = parseFloat(document.getElementById('tradeAmount').value);
-    const price = parseFloat(document.getElementById('tradePrice').value);
     const data = portfolio.dataCache[editingFundCode];
     const currentNav = data?.estimate || data?.nav || fund.costPrice;
-    const tradePrice = !isNaN(price) && price > 0 ? price : currentNav;
 
     if (currentTradeType === 'buy') {
-        if (isNaN(amount) || amount <= 0 || tradePrice <= 0) {
-            alert('请输入有效的买入金额');
+        // 加仓逻辑
+        const amount = parseFloat(document.getElementById('tradeAmount').value);
+        
+        if (isNaN(amount) || amount <= 0) {
+            alert('请输入有效的加仓金额');
             return;
         }
-        const newShares = amount / tradePrice;
+        
+        const newShares = amount / currentNav;
         const totalCost = (fund.shares * fund.costPrice) + amount;
         fund.shares += newShares;
         fund.costPrice = totalCost / fund.shares;
+        
+        showToast(`成功加仓 ¥${amount.toFixed(2)}`);
+        
     } else if (currentTradeType === 'sell') {
-        if (isNaN(amount) || amount <= 0) {
+        // 减仓逻辑
+        const sellShares = parseFloat(document.getElementById('sellShares').value);
+        
+        if (isNaN(sellShares) || sellShares <= 0) {
             alert('请输入有效的卖出份额');
             return;
         }
-        if (amount > fund.shares) {
+        
+        if (sellShares > fund.shares) {
             alert(`最多可卖出 ${fund.shares.toFixed(2)} 份`);
             return;
         }
-        fund.shares -= amount;
+        
+        fund.shares -= sellShares;
+        const sellAmount = sellShares * currentNav;
+        
         if (fund.shares <= 0.001) {
-            // 全部清仓，删除基金
+            // 全部清仓
             portfolio.funds = portfolio.funds.filter(f => f.code !== editingFundCode);
             delete portfolio.dataCache[editingFundCode];
             if (selectedFundCode === editingFundCode) {
                 selectedFundCode = null;
             }
+            showToast(`已清仓，卖出金额 ¥${sellAmount.toFixed(2)}`);
+        } else {
+            showToast(`成功减仓 ${sellShares.toFixed(2)} 份，卖出金额 ¥${sellAmount.toFixed(2)}`);
         }
-    } else if (currentTradeType === 'edit') {
-        if (isNaN(amount) || amount < 0 || isNaN(price) || price <= 0) {
-            alert('请输入有效的数值');
-            return;
-        }
-        fund.shares = amount;
-        fund.costPrice = price;
     }
 
     await saveStorage();
@@ -2734,6 +2791,8 @@ globalThis.saveFundEdit = saveFundEdit;
 globalThis.deleteCurrentFund = deleteCurrentFund;
 globalThis.switchTradeType = switchTradeType;
 globalThis.calculateTradePreview = calculateTradePreview;
+globalThis.calculateSellPreview = calculateSellPreview;
+globalThis.setSellShares = setSellShares;
 globalThis.confirmTrade = confirmTrade;
 globalThis.handleFundClick = handleFundClick;
 globalThis.selectFund = selectFund;
